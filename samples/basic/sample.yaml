@@ -1,0 +1,24 @@
+sample:
+  name: STSEphyr STSAFE-A120 basic communication
+  description: Non-destructive STSELib initialization and echo on X-NUCLEO-ESE01A1
+
+common:
+  tags:
+    - security
+    - i2c
+    - stsafe
+  platform_allow:
+    - nucleo_l452re
+  integration_platforms:
+    - nucleo_l452re
+  build_only: true
+
+tests:
+  sample.stsephyr.basic:
+    extra_args:
+      - SHIELD=x_nucleo_ese01a1
+  sample.stsephyr.basic.full:
+    extra_args:
+      - SHIELD=x_nucleo_ese01a1
+    extra_conf_files:
+      - full.conf

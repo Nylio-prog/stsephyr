@@ -1,0 +1,31 @@
+manifest:
+  version: "1.2"
+
+  remotes:
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
+    - name: stmicroelectronics
+      url-base: https://github.com/STMicroelectronics
+
+  projects:
+    - name: zephyr
+      remote: zephyrproject-rtos
+      revision: v4.4.0
+      import:
+        name-allowlist:
+          - cmsis
+          - cmsis_6
+          - hal_stm32
+          - mbedtls
+          - tf-psa-crypto
+
+    - name: stselib
+      remote: stmicroelectronics
+      repo-path: STSELib
+      revision: v1.1.9
+      path: modules/lib/stselib
+      groups:
+        - stse
+
+  self:
+    path: stsephyr

@@ -1,0 +1,165 @@
+# Copyright (c) 2026 STMicroelectronics
+# SPDX-License-Identifier: Apache-2.0
+
+menuconfig STSEPHYR
+	bool "STSELib port for STSAFE-A120"
+	default y if DT_HAS_ST_STSAFE_A120_ENABLED
+	depends on DT_HAS_ST_STSAFE_A120_ENABLED
+	select I2C
+	select GPIO
+	select CSPRNG_NEEDED
+	select PSA_CRYPTO
+	select PSA_WANT_KEY_TYPE_ECC_PUBLIC_KEY
+	select PSA_WANT_KEY_TYPE_ECC_KEY_PAIR_IMPORT
+	select PSA_WANT_KEY_TYPE_ECC_KEY_PAIR_EXPORT
+	select PSA_WANT_KEY_TYPE_ECC_KEY_PAIR_GENERATE
+	select PSA_WANT_KEY_TYPE_ECC_KEY_PAIR_DERIVE
+	select PSA_WANT_KEY_TYPE_AES
+	select PSA_WANT_KEY_TYPE_HMAC
+	select PSA_WANT_ALG_ECDSA
+	select PSA_WANT_ALG_ECDH
+	select PSA_WANT_ALG_CMAC
+	select PSA_WANT_ALG_CBC_NO_PADDING
+	select PSA_WANT_ALG_ECB_NO_PADDING
+	select PSA_WANT_ALG_HMAC
+	select PSA_WANT_ALG_SHA_256
+	select PSA_WANT_ALG_SHA_384
+	select PSA_WANT_ALG_SHA_512
+	help
+	  Build the STSELib v1.1.9 integration and native Zephyr device for
+	  STSAFE-A120 secure elements connected over I2C.
+
+if STSEPHYR
+
+config STSEPHYR_INIT_PRIORITY
+	int "Device initialization priority"
+	default 80
+	range 0 99
+	help
+	  POST_KERNEL initialization priority. The I2C and GPIO controllers must
+	  already be ready.
+
+config STSEPHYR_MAX_INSTANCES
+	int "Maximum STSAFE-A120 instances"
+	default 1
+	range 1 8
+	help
+	  Maximum number of per-device platform contexts. STSELib contains
+	  process-global PAL state, so public operations are serialized globally.
+
+config STSEPHYR_LOCK_TIMEOUT_MS
+	int "Default API lock timeout in milliseconds"
+	default 5000
+	range 1 60000
+
+config STSEPHYR_RESET_ASSERT_MS
+	int "Reset assertion time in milliseconds"
+	default 1
+	range 1 1000
+
+config STSEPHYR_USE_RSP_POLLING
+	bool "Poll for command responses"
+	default y
+
+if STSEPHYR_USE_RSP_POLLING
+
+config STSEPHYR_MAX_POLLING_RETRY
+	int "Maximum response polling attempts"
+	default 100
+	range 1 1000
+
+config STSEPHYR_FIRST_POLLING_INTERVAL_MS
+	int "Delay before the first response attempt"
+	default 10
+	range 1 1000
+
+config STSEPHYR_POLLING_RETRY_INTERVAL_MS
+	int "Delay between response polling attempts"
+	default 10
+	range 1 1000
+
+endif
+
+menu "STSELib algorithms"
+
+config STSEPHYR_ECC_NIST_P256
+	bool "NIST P-256"
+	default y
+	select PSA_WANT_ECC_SECP_R1_256
+
+config STSEPHYR_ECC_NIST_P384
+	bool "NIST P-384"
+	default y
+	select PSA_WANT_ECC_SECP_R1_384
+
+config STSEPHYR_ECC_NIST_P521
+	bool "NIST P-521"
+	default n
+	select PSA_WANT_ECC_SECP_R1_521
+
+config STSEPHYR_ECC_BRAINPOOL_P256
+	bool "Brainpool P-256"
+	default n
+	select PSA_WANT_ECC_BRAINPOOL_P_R1_256
+
+config STSEPHYR_ECC_BRAINPOOL_P384
+	bool "Brainpool P-384"
+	default n
+	select PSA_WANT_ECC_BRAINPOOL_P_R1_384
+
+config STSEPHYR_ECC_BRAINPOOL_P512
+	bool "Brainpool P-512"
+	default n
+	select PSA_WANT_ECC_BRAINPOOL_P_R1_512
+
+config STSEPHYR_ECC_CURVE25519
+	bool "Curve25519"
+	default n
+	select PSA_WANT_ECC_MONTGOMERY_255
+
+config STSEPHYR_HASH_SHA256
+	bool "SHA-256"
+	default y
+	select PSA_WANT_ALG_SHA_256
+
+config STSEPHYR_HASH_SHA384
+	bool "SHA-384"
+	default y
+	select PSA_WANT_ALG_SHA_384
+
+config STSEPHYR_HASH_SHA512
+	bool "SHA-512"
+	default y
+	select PSA_WANT_ALG_SHA_512
+
+endmenu
+
+config STSEPHYR_HOST_SESSION
+	bool "STSAFE host secure sessions"
+	default n
+	help
+	  Enable STSELib's host session support. Applications must provision and
+	  protect host keys; enabling this option does not provision any key.
+
+config STSEPHYR_HOST_KEY_ESTABLISHMENT
+	bool "Host key establishment helpers"
+	default n
+
+config STSEPHYR_HOST_KEY_WRAPPED_PROVISIONING
+	bool "Wrapped host-key provisioning helpers"
+	default n
+
+config STSEPHYR_SYMMETRIC_KEY_ESTABLISHMENT
+	bool "Symmetric-key establishment helpers"
+	default n
+
+config STSEPHYR_SYMMETRIC_KEY_WRAPPED_PROVISIONING
+	bool "Wrapped symmetric-key provisioning helpers"
+	default n
+
+module = STSEPHYR
+module-str = stsephyr
+module-help = STSAFE-A120 and STSELib integration logging
+source "subsys/logging/Kconfig.template.log_config"
+
+endif

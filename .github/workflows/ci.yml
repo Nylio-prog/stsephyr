@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out STSEphyr
+        uses: actions/checkout@v4
+        with:
+          path: stsephyr
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Zephyr SDK and Python dependencies
+        uses: zephyrproject-rtos/action-zephyr-setup@v1
+        with:
+          app-path: stsephyr
+          toolchains: arm-zephyr-eabi
+
+      - name: Run unit and build tests
+        run: west twister -T stsephyr/tests -T stsephyr/samples --inline-logs
+
+      - name: Check source formatting and whitespace
+        working-directory: stsephyr
+        run: |
+          git ls-files -z '*.c' '*.h' | xargs -0 clang-format --dry-run --Werror
+          if git grep -nI -E '[[:blank:]]+$' -- ':(exclude)LICENSE'; then
+            exit 1
+          fi
