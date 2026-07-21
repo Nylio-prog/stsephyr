@@ -117,14 +117,6 @@ config STSEPHYR_ECC_CURVE25519
 	default n
 	select PSA_WANT_ECC_MONTGOMERY_255
 
-config STSEPHYR_ECC_EDWARD25519
-	bool "Edwards 25519 (Ed25519)"
-	default n
-	help
-	  Enable STSELib's Ed25519 key-pair and signature commands. The
-	  STSAFE-A120 performs these operations; no Zephyr PSA Ed25519 backend is
-	  required by the category-01 example.
-
 config STSEPHYR_HASH_SHA256
 	bool "SHA-256"
 	default y

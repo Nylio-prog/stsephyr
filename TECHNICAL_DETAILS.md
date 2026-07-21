@@ -235,14 +235,17 @@ machine-readable `PASS:` line:
 
 | Sample | Demonstrates | Persistent side effects by default |
 | --- | --- | --- |
-| `01_device_authentication` | Certificate-chain validation and challenge authentication with the ST production CA | None |
-| `01_device_authentication_multi_steps` | The individual certificate, key-type, signing, and host-verification steps | None |
-| `01_echo_loop` | Variable-length echo requests (bounded to 1--500 bytes) | None |
-| `01_hash` | Host PSA SHA-256 versus STSAFE SHA-256 | None |
-| `01_key_pair_generation_*` | STSAFE-generated NIST P-256/P-521, Brainpool P-512, and Edwards/25519 key demonstrations | A key is generated in the selected slot; use a disposable device/profile |
+| `01_device_authentication` | Raw DER and parsed device-certificate output followed by chain and challenge authentication with the ST production CA | None |
+| `01_device_authentication_multi_steps` | Parsed CA/device certificates, host challenge, device signature, and each host-verification step | None |
+| `01_echo_loop` | Full variable-length request and response buffers (bounded to 1--500 bytes) | None |
+| `01_hash` | Input buffer plus host PSA and STSAFE SHA-256 results | None |
 | `01_random_number` | 64 bytes from the STSAFE random service | None |
-| `01_secure_data_storage_zone_access` | Partition discovery and data-zone readback | Updates are disabled unless explicitly opted in |
-| `01_secure_data_storage_counter_access` | Partition discovery and counter-zone readback | Decrement is disabled unless explicitly opted in |
+| `01_secure_data_storage_zone_access` | Full partition table and 100-byte data-zone readback | Updates are disabled unless explicitly opted in |
+| `01_secure_data_storage_counter_access` | Full partition table, associated data, and counter-zone readback | Decrement is disabled unless explicitly opted in |
+
+The applications select Zephyr's immediate logging mode. Certificate and
+variable-length buffer dumps can otherwise fill the deferred logging queue and
+produce `messages dropped` reports before the UART backend drains it.
 
 The project template is a minimal customer starting point. Build any sample
 with the same board/shield arguments, for example:

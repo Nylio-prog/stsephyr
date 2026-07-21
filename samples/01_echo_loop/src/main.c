@@ -20,7 +20,11 @@ int main(void)
 	stse_ReturnCode_t status;
 	uint16_t random_length;
 
-	printk("STSEphyr: echo loop (%u iterations)\n", ECHO_ITERATIONS);
+	stsephyr_sample_banner(
+		"STSAFE-A Echo loop example",
+		"Sends random messages to STSAFE-A120 and verifies the echoed data.");
+	printk(" - Running %u bounded iterations (the ST SDK example runs continuously)\n",
+	       ECHO_ITERATIONS);
 	if (stsephyr_sample_open(&handler) != 0) {
 		return 0;
 	}
@@ -31,18 +35,25 @@ int main(void)
 		stsephyr_sample_random(request, random_length);
 		memset(response, 0, random_length);
 
+		printk("\n - Echo iteration %u/%u (%u bytes)\n", iteration + 1U, ECHO_ITERATIONS,
+		       random_length);
+		stsephyr_sample_section("Message");
+		stsephyr_sample_hex("Message", request, random_length);
+
 		status = stse_device_echo(handler, request, response, random_length);
-		if (status != STSE_OK) {
-			stsephyr_sample_status("STSAFE-A120 echo", status);
+		if (stsephyr_sample_status("stse_device_echo", status) != 0) {
 			goto out;
 		}
+
+		stsephyr_sample_section("Echoed Message");
+		stsephyr_sample_hex("Echoed Message", response, random_length);
 		if (memcmp(request, response, random_length) != 0) {
 			printk("FAIL: echo mismatch on iteration %u\n", iteration + 1U);
 			goto out;
 		}
-		printk("OK: echo %u/%u (%u bytes)\n", iteration + 1U,
-		       ECHO_ITERATIONS, random_length);
-		k_sleep(K_MSEC(100));
+		printk(" - Echo message comparison: SUCCESS\n");
+		stsephyr_sample_footer();
+		k_sleep(K_SECONDS(1));
 	}
 
 	stsephyr_sample_close();

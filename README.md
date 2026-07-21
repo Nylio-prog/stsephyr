@@ -54,17 +54,13 @@ Zephyr applications under `samples/`.
 | Sample | What it demonstrates | Persistent STSAFE side effects by default |
 | --- | --- | --- |
 | `basic` | Initializes STSELib through Zephyr and performs one echo command | None |
-| `01_device_authentication` | Validates the device certificate chain and proves possession of slot 0 | None |
-| `01_device_authentication_multi_steps` | Runs and reports each certificate and challenge-response authentication step | None |
-| `01_echo_loop` | Checks five variable-length echo transactions | None |
-| `01_hash` | Compares host-side PSA SHA-256 with STSAFE-A120 SHA-256 | None |
-| `01_key_pair_generation_NIST_P256` | Generates, signs, and verifies with a NIST P-256 key in slot 1 | Generates a key pair |
-| `01_key_pair_generation_NIST_P521` | Generates, signs, and verifies with a NIST P-521 key in slot 1 | Generates a key pair |
-| `01_key_pair_generation_BRAINPOOL_P512` | Generates, signs, and verifies with a Brainpool P-512 key in slot 1 | Generates a key pair |
-| `01_key_pair_generation_EDWARDS_25519` | Generates, signs, and verifies with an Ed25519 key in slot 1 | Generates a key pair |
+| `01_device_authentication` | Prints the raw and parsed device certificate, validates its chain, and proves possession of slot 0 | None |
+| `01_device_authentication_multi_steps` | Prints both parsed certificates, the host challenge, and the STSAFE signature while reporting every authentication step | None |
+| `01_echo_loop` | Prints and checks both sides of five variable-length echo transactions | None |
+| `01_hash` | Prints the input and compares the host-side PSA and STSAFE-A120 SHA-256 values | None |
 | `01_random_number` | Reads 64 random bytes from the STSAFE-A120 TRNG | None |
-| `01_secure_data_storage_counter_access` | Discovers and reads the configured counter zone | Counter decrement is disabled |
-| `01_secure_data_storage_zone_access` | Discovers and reads the configured data zone | Zone update is disabled |
+| `01_secure_data_storage_counter_access` | Prints the partition table, configured counter-zone data, and current counter | Counter decrement is disabled |
+| `01_secure_data_storage_zone_access` | Prints the partition table and 100 bytes from the configured data zone | Zone update is disabled |
 | `project_template` | Minimal starting point for a customer application | None |
 
 Build any of them with the same board and shield arguments, for example:
@@ -79,6 +75,9 @@ west flash -d build/01_device_authentication
 Storage writes and counter decrements are disabled by default. Enable the
 corresponding sample Kconfig option explicitly only when using a disposable,
 provisioned device.
+
+Key-pair-generation examples are intentionally excluded because generating a
+key changes persistent slot state and can consume its configured usage limit.
 
 ## Validation
 
