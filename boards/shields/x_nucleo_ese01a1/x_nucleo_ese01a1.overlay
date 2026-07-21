@@ -12,7 +12,8 @@
 	stsafe_a120: stsafe-a120@20 {
 		compatible = "st,stsafe-a120";
 		reg = <0x20>;
-		reset-gpios = <&arduino_header ARDUINO_HEADER_R3_A5 GPIO_ACTIVE_LOW>;
+		/* The shield's PMOS makes the MCU-side A5 reset command active high. */
+		reset-gpios = <&arduino_header ARDUINO_HEADER_R3_A5 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 };

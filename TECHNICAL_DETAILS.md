@@ -85,13 +85,19 @@ host helpers from Kconfig.
 X-NUCLEO-ESE01A1 is modeled as the `x_nucleo_ese01a1` Zephyr shield, not as a
 custom board. The common overlay creates one `st,stsafe-a120` child on
 `arduino_i2c` with 7-bit address `0x20`. The reset-management signal is connected
-through Arduino A5 and declared active-low. On NUCLEO-L452RE, Zephyr resolves
-the Arduino I2C connector to I2C1 on PB8/PB7 and A5 to PC0.
+through Arduino A5. The shield's P-channel MOSFET inverts the STSAFE-A120's
+active-low reset input, so the MCU-side A5 command is declared active-high. On
+NUCLEO-L452RE, A5 resolves to PC0.
 
-The board-specific shield overlay enables the STM32 hardware RNG because the
-PAL requires a cryptographically secure random source. The X-NUCLEO board has
-configurable I2C pull-ups and supply links; these must be set consistently with
-the host voltage as described in ST's
+The NUCLEO-L452RE base devicetree assigns I2C1 SDA to PB7, while the Arduino
+D14/SDA connector used by the shield is PB9. The board-specific shield overlay
+therefore selects PB8/PB9 explicitly. It also enables both the STM32 hardware
+RNG and its required HSI48 domain clock because the PAL requires a
+cryptographically secure random source. Enabling the RNG without HSI48 blocks
+STM32 entropy initialization before the UART console starts.
+
+The X-NUCLEO board has configurable I2C pull-ups and supply links; these must be
+set consistently with the host voltage as described in ST's
 [UM3531](https://www.st.com/resource/en/user_manual/um3531-how-to-use-stm32-nucleo-expansion-board-based-on-the-stsafea120-secure-element-stmicroelectronics.pdf).
 
 The binding keeps bus, address, and reset routing in devicetree. The C driver

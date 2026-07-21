@@ -9,6 +9,10 @@ STSAFE-A120 with the standard evaluation profile. STSEphyr uses the Arduino I2C
 bus and the reset-management input connected to Arduino A5. The standard profile
 uses the 7-bit I2C address 0x20.
 
+On Nucleo-L452RE the board-specific shield overlay routes Arduino I2C to
+PB8/PB9, enables the HSI48 clock required by the hardware RNG, and accounts for
+the shield's inverted A5 reset-management circuit.
+
 Requirements
 ************
 
