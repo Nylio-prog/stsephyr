@@ -11,7 +11,12 @@ common:
     - nucleo_l452re
   integration_platforms:
     - nucleo_l452re
-  build_only: true
+  harness: console
+  harness_config:
+    type: one_line
+    regex:
+      - "PASS: basic"
+    fixture: stsafe_a120
 
 tests:
   sample.stsephyr.basic:

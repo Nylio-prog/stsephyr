@@ -89,40 +89,57 @@ west build -p always -b nucleo_l452re --shield x_nucleo_ese01a1 \
   -DEXTRA_CONF_FILE=stsephyr/samples/basic/full.conf
 ```
 
-Run the sample build matrix and host-side tests with Twister:
+Run the host-side unit tests and compile the hardware sample matrix:
 
 ```shell
-west twister -T stsephyr/samples -T stsephyr/tests --inline-logs
+west twister -T stsephyr/tests --inline-logs -O twister-out-tests
+west twister -T stsephyr/samples --build-only --inline-logs \
+  --short-build-path -O twister-out-samples
 ```
 
-Run every sample as a hardware integration test with the Nucleo and shield
-connected:
+GitHub Actions uses the same split: host-side tests execute normally, while the
+samples are compilation-only because its runners do not have an STSAFE-A120
+attached.
+
+Run every sample as a hardware integration test with the Nucleo-L452RE and
+X-NUCLEO-ESE01A1 connected:
 
 ```shell
-python stsephyr/scripts/run_examples.py
+west twister -T stsephyr/samples --device-testing \
+  --hardware-map stsephyr/hardware-map.yml --inline-logs \
+  --short-build-path -ll DEBUG
 ```
 
-The runner auto-detects the ST-LINK virtual COM port, builds each application
-in its own directory, flashes it, and prints the complete 115200-8-N-1 serial
-output. It waits for each application's success marker and finishes with a
-pass/fail table containing build, flash, firmware run, and total times. Serial
-transcripts are also saved as `serial.log` in each sample's build directory.
+Twister builds and flashes each application, streams its 115200-baud serial
+output as `DEVICE:` debug messages, and passes the test when the expected
+`PASS: <sample>` marker appears. It reports pass/fail status and execution
+duration for every scenario, with each complete serial transcript in the
+scenario's `handler.log` and machine-readable results in `twister-out`. Omit
+`-ll DEBUG` when only the concise progress and result summary is needed.
 
-Use an explicit port if more than one ST-LINK is attached, or name one or more
-samples to run only those applications:
+The checked-in `hardware-map.yml` identifies the current Nucleo by its ST-LINK
+probe ID, uses the OpenOCD flash runner, maps its virtual serial port to `COM3`,
+and advertises the required `stsafe_a120` fixture. If Windows assigns another
+port, update the `serial` field before running the tests. To regenerate a map
+for another probe, run:
 
 ```shell
-python stsephyr/scripts/run_examples.py --port COM6
-python stsephyr/scripts/run_examples.py 01_hash 01_random_number --port COM6
+west twister --generate-hardware-map stsephyr/hardware-map.yml
 ```
 
-Run `python stsephyr/scripts/run_examples.py --help` for board, shield, runner,
-timeout, and build-directory options. The script requires `pyserial`, which is
-installed by Zephyr's normal Python dependency setup; otherwise install it with
-`python -m pip install pyserial`.
+Then restore the generated entry's `platform`, `runner`, and `fixtures` fields
+as shown in the checked-in map. To run only one example, select its Twister
+scenario, for example:
 
-On Windows, use a short Twister output path (for example, `-O C:\\twister-out`)
-if the workspace is nested deeply enough to reach the Windows object-path limit.
+```shell
+west twister -T stsephyr/samples --device-testing \
+  --hardware-map stsephyr/hardware-map.yml \
+  -s sample.stsephyr.hash --inline-logs --short-build-path -ll DEBUG
+```
+
+On Windows, add `--short-build-path` to Twister commands that build the samples.
+Some of the generated Mbed TLS object paths can exceed the Windows path limit
+even when a short output directory is used.
 
 See [TECHNICAL_DETAILS.md](TECHNICAL_DETAILS.md) for architecture, limitations,
 the validation strategy, and hardware notes.

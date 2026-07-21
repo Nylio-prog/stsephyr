@@ -1,0 +1,9 @@
+- connected: true
+  fixtures:
+    - stsafe_a120
+  id: 0666FF505271754867051839
+  platform: nucleo_l452re
+  product: STM32 STLink
+  runner: openocd
+  serial: COM3
+  baud: 115200

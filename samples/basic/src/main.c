@@ -9,6 +9,7 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/sys/printk.h>
 
 #include <stsephyr/stsafe_a120.h>
 
@@ -48,5 +49,6 @@ int main(void)
 	}
 
 	LOG_INF("STSAFE-A120 echo successful");
+	printk("PASS: basic\n");
 	return 0;
 }

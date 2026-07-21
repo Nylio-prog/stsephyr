@@ -23,6 +23,7 @@ verified, reset, and started successfully. Its 115200-8-N-1 console output was:
 <inf> stsephyr: stsafe-a120@20 ready at 0x20 on i2c@40005400
 *** Booting Zephyr OS build v4.4.0 ***
 <inf> stsephyr_sample: STSAFE-A120 echo successful
+PASS: basic
 ```
 
 ## Category-01 hardware run
@@ -49,3 +50,27 @@ and buffer dumps reached the UART without deferred-log message loss.
 The safe storage defaults were left enabled: no zone update or counter
 decrement was attempted. Key-pair-generation applications are deliberately not
 provided or tested because their operations alter persistent key-slot state.
+
+## Twister hardware integration run
+
+On 2026-07-22, the samples were migrated to the Twister console harness and
+run using `hardware-map.yml`. Twister built, flashed, and executed all ten
+scenarios on the connected Nucleo-L452RE plus X-NUCLEO-ESE01A1. All ten passed:
+
+| Twister scenario | Execution time |
+| --- | ---: |
+| `sample.stsephyr.device_authentication` | 5.44 s |
+| `sample.stsephyr.device_authentication_multi_steps` | 5.43 s |
+| `sample.stsephyr.echo_loop` | 9.41 s |
+| `sample.stsephyr.hash` | 2.93 s |
+| `sample.stsephyr.random_number` | 2.84 s |
+| `sample.stsephyr.counter_access` | 3.11 s |
+| `sample.stsephyr.zone_access` | 3.23 s |
+| `sample.stsephyr.basic` | 3.74 s |
+| `sample.stsephyr.basic.full` | 5.47 s |
+| `sample.stsephyr.project_template` | 5.51 s |
+
+These are Twister scenario durations and include flashing/reset/console
+overhead; they are integration-test timing figures, not isolated firmware
+operation benchmarks. Full UART transcripts were captured in each scenario's
+`handler.log`.

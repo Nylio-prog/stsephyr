@@ -203,11 +203,14 @@ buffer overflow `-EMSGSIZE`, receive timeout `-ETIMEDOUT`, authorization failure
 
 ## 10. Verification
 
-The basic sample is build-only in Twister and performs a non-destructive device
-initialization and echo when flashed. The CRC ztest checks both one-shot and
-incremental calculation against the standard X-25 vector. CI uses the official
-Zephyr setup action, builds/tests the repository with Twister, and rejects
-whitespace errors.
+Every sample is a Twister console-harness scenario that requires the
+`stsafe_a120` fixture and matches its exact `PASS: <sample>` marker. The
+checked-in hardware map identifies the Nucleo-L452RE, its ST-LINK serial port
+and OpenOCD runner, and the attached fixture. The CRC ztest checks both one-shot
+and incremental calculation against the standard X-25 vector. CI uses the
+official Zephyr setup action, executes the host-side test, compiles the hardware
+samples with `--build-only`, and rejects whitespace errors. It cannot execute
+the sample harnesses because GitHub-hosted runners have no STSAFE-A120.
 
 The initial implementation has been compile-validated with Zephyr v4.4.0,
 Zephyr SDK 1.0.1, STSELib v1.1.9, board `nucleo_l452re`, and shield
@@ -217,8 +220,9 @@ with compiler, Kconfig, logging, and dependency updates.
 
 The full optional-feature build also links successfully and used 112,900 bytes
 of flash and 25,344 bytes of RAM in the same environment. Twister discovered
-and built both sample configurations. On Windows, a short Twister output path is
-recommended to avoid the platform's object-path length limit.
+and built both sample configurations. On Windows, use Twister's
+`--short-build-path` option; a short output directory alone is insufficient for
+the longest generated Mbed TLS object paths.
 
 Physical qualification still requires the actual two-board stack. At minimum,
 record successful reset/initialization, echo, repeated commands, maximum-length

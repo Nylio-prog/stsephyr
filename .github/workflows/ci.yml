@@ -27,8 +27,11 @@ jobs:
           app-path: stsephyr
           toolchains: arm-zephyr-eabi
 
-      - name: Run unit and build tests
-        run: west twister -T stsephyr/tests -T stsephyr/samples --inline-logs
+      - name: Run host-side unit tests
+        run: west twister -T stsephyr/tests --inline-logs -O twister-out-tests
+
+      - name: Build hardware samples
+        run: west twister -T stsephyr/samples --build-only --inline-logs -O twister-out-samples
 
       - name: Check source formatting and whitespace
         working-directory: stsephyr

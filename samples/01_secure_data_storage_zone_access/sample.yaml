@@ -6,8 +6,12 @@ common:
   tags: [security, i2c, stsafe]
   platform_allow: [nucleo_l452re]
   integration_platforms: [nucleo_l452re]
-  build_only: true
   extra_args: [SHIELD=x_nucleo_ese01a1]
+  harness: console
+  harness_config:
+    type: one_line
+    regex: ["PASS: 01_secure_data_storage_zone_access"]
+    fixture: stsafe_a120
 
 tests:
   sample.stsephyr.zone_access: {}
