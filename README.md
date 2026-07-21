@@ -39,11 +39,33 @@ Stack X-NUCLEO-ESE01A1 on the Nucleo-L452RE and build:
 ```shell
 west build -b nucleo_l452re --shield x_nucleo_ese01a1 \
   stsephyr/samples/basic
+# Use the Zephyr SDK's bundled OpenOCD/ST-LINK runner (no manual HEX copying):
+west flash -r openocd
 west flash
 ```
 
 Open the ST-LINK virtual COM port at 115200 8N1. A successful run initializes
 STSELib and performs a non-destructive echo command.
+
+## SDK-inspired examples
+
+Category-01 examples are provided as independent Zephyr applications under
+`samples/`: device authentication (single- and multi-step), echo loop, hash,
+random number, NIST/Brainpool/Ed25519 key-pair generation, and secure data
+storage zone/counter access. The reusable customer starter is
+`samples/project_template`.
+
+Build any of them with the same board and shield arguments, for example:
+
+```shell
+west build -b nucleo_l452re --shield x_nucleo_ese01a1 \
+  stsephyr/samples/01_device_authentication
+west flash -r openocd
+```
+
+Storage writes and counter decrements are disabled by default. Enable the
+corresponding sample Kconfig option explicitly only when using a disposable,
+provisioned device.
 
 ## Validation
 

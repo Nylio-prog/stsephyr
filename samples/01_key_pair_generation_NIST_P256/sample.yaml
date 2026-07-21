@@ -1,0 +1,13 @@
+sample:
+  name: STSAFE-A120 NIST P-256 key-pair generation
+  description: Generate a NIST P-256 key pair, sign a message, and verify the signature
+
+common:
+  tags: [security, i2c, stsafe, ecc]
+  platform_allow: [nucleo_l452re]
+  integration_platforms: [nucleo_l452re]
+  build_only: true
+  extra_args: [SHIELD=x_nucleo_ese01a1]
+
+tests:
+  sample.stsephyr.key_pair_generation_nist_p256: {}

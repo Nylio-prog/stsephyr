@@ -1,0 +1,17 @@
+mainmenu "STSAFE-A120 data-zone example"
+
+config SAMPLE_STSAFE_DATA_ZONE
+	int "Data-zone index"
+	default 1
+	range 0 255
+	help
+	  Zone 1 matches the STSAFE-A120 SPL05 default personalization.
+
+config SAMPLE_STSAFE_ALLOW_ZONE_UPDATE
+	bool "Allow the example to update secure-element NVM"
+	default n
+	help
+	  DANGEROUS: this changes persistent data and consumes NVM write endurance.
+	  Keep this off for normal builds and hardware validation.
+
+source "Kconfig.zephyr"

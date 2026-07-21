@@ -1,0 +1,13 @@
+sample:
+  name: STSAFE-A120 hash
+  description: Compare host PSA SHA-256 with STSAFE-A120 SHA-256
+
+common:
+  tags: [security, i2c, stsafe]
+  platform_allow: [nucleo_l452re]
+  integration_platforms: [nucleo_l452re]
+  build_only: true
+  extra_args: [SHIELD=x_nucleo_ese01a1]
+
+tests:
+  sample.stsephyr.hash: {}

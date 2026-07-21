@@ -226,7 +226,62 @@ transfer, polling timeout behavior, concurrent caller serialization, and
 repeated reset. The introductory test must not run irreversible commands even
 though the default evaluation profile allows them.
 
-## 11. Known limitations and upgrade rules
+## 11. SDK-inspired category-01 samples
+
+The `samples/` tree mirrors the non-provisioning category-01 projects from the
+STSAFE-A SDK. Each sample is a normal Zephyr application and shares a small
+helper that acquires the STSAFE device, reports STSELib status, and prints a
+machine-readable `PASS:` line:
+
+| Sample | Demonstrates | Persistent side effects by default |
+| --- | --- | --- |
+| `01_device_authentication` | Certificate-chain validation and challenge authentication with the ST production CA | None |
+| `01_device_authentication_multi_steps` | The individual certificate, key-type, signing, and host-verification steps | None |
+| `01_echo_loop` | Variable-length echo requests (bounded to 1--500 bytes) | None |
+| `01_hash` | Host PSA SHA-256 versus STSAFE SHA-256 | None |
+| `01_key_pair_generation_*` | STSAFE-generated NIST P-256/P-521, Brainpool P-512, and Edwards/25519 key demonstrations | A key is generated in the selected slot; use a disposable device/profile |
+| `01_random_number` | 64 bytes from the STSAFE random service | None |
+| `01_secure_data_storage_zone_access` | Partition discovery and data-zone readback | Updates are disabled unless explicitly opted in |
+| `01_secure_data_storage_counter_access` | Partition discovery and counter-zone readback | Decrement is disabled unless explicitly opted in |
+
+The project template is a minimal customer starting point. Build any sample
+with the same board/shield arguments, for example:
+
+```console
+west build -b nucleo_l452re --shield x_nucleo_ese01a1 \
+  stsephyr/samples/01_hash
+```
+
+For destructive SDK-parity operations, opt in deliberately at build time and
+record the device state before/after the run:
+
+```console
+west build -b nucleo_l452re --shield x_nucleo_ese01a1 \
+  stsephyr/samples/01_secure_data_storage_zone_access -- \
+  -DCONFIG_SAMPLE_STSAFE_ALLOW_ZONE_UPDATE=y
+west build -b nucleo_l452re --shield x_nucleo_ese01a1 \
+  stsephyr/samples/01_secure_data_storage_counter_access -- \
+  -DCONFIG_SAMPLE_STSAFE_ALLOW_COUNTER_DECREMENT=y
+```
+
+### Flashing through Zephyr runners
+
+The NUCLEO-L452RE board definition already provides Zephyr's standard
+`stm32cubeprogrammer`, `openocd`, `jlink`, and `stlink_gdbserver` runners. The
+build creates the usual ELF/HEX/BIN artifacts; users should flash through
+`west`, without copying a HEX file manually:
+
+```console
+west flash -r openocd
+```
+
+With STM32CubeProgrammer installed, the board default also works (`west flash`
+or `west flash -r stm32cubeprogrammer`). `west flash --context` displays the
+selected runner and arguments. A `LIBUSB_ERROR_NOT_FOUND` from OpenOCD means
+the ST-LINK USB debug interface/driver is not visible to the host; it is a
+probe/driver issue rather than an application image issue.
+
+## 12. Known limitations and upgrade rules
 
 - Only NUCLEO-L452RE plus X-NUCLEO-ESE01A1 is in the initial support matrix.
 - No Zephyr generic crypto-device API is provided; applications use STSELib.
@@ -244,7 +299,7 @@ review the binding schema, connector labels, board qualifiers, PSA wants, GPIO
 semantics, and SDK/toolchain baseline. Dependency checkouts must remain
 unmodified and release manifests must continue to pin immutable revisions.
 
-## 12. References
+## 13. References
 
 - [STSELib v1.1.9](https://github.com/STMicroelectronics/STSELib/tree/v1.1.9)
 - [Zephyr external modules](https://docs.zephyrproject.org/4.4.0/develop/modules.html)
