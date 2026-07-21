@@ -95,6 +95,32 @@ Run the sample build matrix and host-side tests with Twister:
 west twister -T stsephyr/samples -T stsephyr/tests --inline-logs
 ```
 
+Run every sample as a hardware integration test with the Nucleo and shield
+connected:
+
+```shell
+python stsephyr/scripts/run_examples.py
+```
+
+The runner auto-detects the ST-LINK virtual COM port, builds each application
+in its own directory, flashes it, and prints the complete 115200-8-N-1 serial
+output. It waits for each application's success marker and finishes with a
+pass/fail table containing build, flash, firmware run, and total times. Serial
+transcripts are also saved as `serial.log` in each sample's build directory.
+
+Use an explicit port if more than one ST-LINK is attached, or name one or more
+samples to run only those applications:
+
+```shell
+python stsephyr/scripts/run_examples.py --port COM6
+python stsephyr/scripts/run_examples.py 01_hash 01_random_number --port COM6
+```
+
+Run `python stsephyr/scripts/run_examples.py --help` for board, shield, runner,
+timeout, and build-directory options. The script requires `pyserial`, which is
+installed by Zephyr's normal Python dependency setup; otherwise install it with
+`python -m pip install pyserial`.
+
 On Windows, use a short Twister output path (for example, `-O C:\\twister-out`)
 if the workspace is nested deeply enough to reach the Windows object-path limit.
 
