@@ -230,7 +230,7 @@ transfer, polling timeout behavior, concurrent caller serialization, and
 repeated reset. The introductory test must not run irreversible commands even
 though the default evaluation profile allows them.
 
-## 11. SDK-inspired category-01 samples
+## 11. STSAFE-A SDK-inspired category-01 samples
 
 The `samples/` tree mirrors the non-provisioning category-01 projects from the
 STSAFE-A SDK. Each sample is a normal Zephyr application and shares a small

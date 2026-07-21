@@ -23,8 +23,7 @@ int main(void)
 	stsephyr_sample_banner(
 		"STSAFE-A Echo loop example",
 		"Sends random messages to STSAFE-A120 and verifies the echoed data.");
-	printk(" - Running %u bounded iterations (the ST SDK example runs continuously)\n",
-	       ECHO_ITERATIONS);
+	printk(" - Running %u bounded iterations\n", ECHO_ITERATIONS);
 	if (stsephyr_sample_open(&handler) != 0) {
 		return 0;
 	}
