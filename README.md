@@ -17,12 +17,13 @@ The initial supported hardware is:
 
 Install the Zephyr prerequisites, the Zephyr SDK, and west as described in the
 [Zephyr getting-started guide](https://docs.zephyrproject.org/4.4.0/develop/getting_started/index.html).
-Then create a workspace from this manifest repository:
+Install STM32CubeProgrammer with its ST-LINK USB driver for flashing. Then
+create a workspace from this manifest repository:
 
 ```shell
 mkdir stsephyr-workspace
 cd stsephyr-workspace
-git clone <STSEPHYR-REPOSITORY-URL> stsephyr
+git clone https://github.com/Nylio-prog/stsephyr.git stsephyr
 west init -l stsephyr
 west update
 west zephyr-export
@@ -39,8 +40,6 @@ Stack X-NUCLEO-ESE01A1 on the Nucleo-L452RE and build:
 ```shell
 west build -b nucleo_l452re --shield x_nucleo_ese01a1 \
   stsephyr/samples/basic
-# Use the Zephyr SDK's bundled OpenOCD/ST-LINK runner (no manual HEX copying):
-west flash -r openocd
 west flash
 ```
 
@@ -49,18 +48,32 @@ STSELib and performs a non-destructive echo command.
 
 ## SDK-inspired examples
 
-Category-01 examples are provided as independent Zephyr applications under
-`samples/`: device authentication (single- and multi-step), echo loop, hash,
-random number, NIST/Brainpool/Ed25519 key-pair generation, and secure data
-storage zone/counter access. The reusable customer starter is
-`samples/project_template`.
+Category-01 examples inspired by the STSAFE-A SDK are provided as independent
+Zephyr applications under `samples/`.
+
+| Sample | What it demonstrates | Persistent STSAFE side effects by default |
+| --- | --- | --- |
+| `basic` | Initializes STSELib through Zephyr and performs one echo command | None |
+| `01_device_authentication` | Validates the device certificate chain and proves possession of slot 0 | None |
+| `01_device_authentication_multi_steps` | Runs and reports each certificate and challenge-response authentication step | None |
+| `01_echo_loop` | Checks five variable-length echo transactions | None |
+| `01_hash` | Compares host-side PSA SHA-256 with STSAFE-A120 SHA-256 | None |
+| `01_key_pair_generation_NIST_P256` | Generates, signs, and verifies with a NIST P-256 key in slot 1 | Generates a key pair |
+| `01_key_pair_generation_NIST_P521` | Generates, signs, and verifies with a NIST P-521 key in slot 1 | Generates a key pair |
+| `01_key_pair_generation_BRAINPOOL_P512` | Generates, signs, and verifies with a Brainpool P-512 key in slot 1 | Generates a key pair |
+| `01_key_pair_generation_EDWARDS_25519` | Generates, signs, and verifies with an Ed25519 key in slot 1 | Generates a key pair |
+| `01_random_number` | Reads 64 random bytes from the STSAFE-A120 TRNG | None |
+| `01_secure_data_storage_counter_access` | Discovers and reads the configured counter zone | Counter decrement is disabled |
+| `01_secure_data_storage_zone_access` | Discovers and reads the configured data zone | Zone update is disabled |
+| `project_template` | Minimal starting point for a customer application | None |
 
 Build any of them with the same board and shield arguments, for example:
 
 ```shell
-west build -b nucleo_l452re --shield x_nucleo_ese01a1 \
+west build -p always -d build/01_device_authentication \
+  -b nucleo_l452re --shield x_nucleo_ese01a1 \
   stsephyr/samples/01_device_authentication
-west flash -r openocd
+west flash -d build/01_device_authentication
 ```
 
 Storage writes and counter decrements are disabled by default. Enable the

@@ -266,20 +266,19 @@ west build -b nucleo_l452re --shield x_nucleo_ese01a1 \
 
 ### Flashing through Zephyr runners
 
-The NUCLEO-L452RE board definition already provides Zephyr's standard
-`stm32cubeprogrammer`, `openocd`, `jlink`, and `stlink_gdbserver` runners. The
-build creates the usual ELF/HEX/BIN artifacts; users should flash through
-`west`, without copying a HEX file manually:
+The NUCLEO-L452RE board definition selects STM32CubeProgrammer as its default
+Zephyr flash runner. After installing STM32CubeProgrammer and its ST-LINK USB
+driver, flash the most recent build with:
 
 ```console
-west flash -r openocd
+west flash
 ```
 
-With STM32CubeProgrammer installed, the board default also works (`west flash`
-or `west flash -r stm32cubeprogrammer`). `west flash --context` displays the
-selected runner and arguments. A `LIBUSB_ERROR_NOT_FOUND` from OpenOCD means
-the ST-LINK USB debug interface/driver is not visible to the host; it is a
-probe/driver issue rather than an application image issue.
+For a named build directory, use `west flash -d build/<sample>`. Zephyr passes
+the generated HEX file to STM32CubeProgrammer, programs it through SWD, resets
+the MCU, and starts the application. No HEX copying or programmer-specific
+command is needed. `west flash --context` displays the selected runner and
+arguments; OpenOCD, J-Link, and ST-LINK GDB server remain optional alternatives.
 
 ## 12. Known limitations and upgrade rules
 

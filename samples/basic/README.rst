@@ -10,6 +10,6 @@ Build and run on the supported Nucleo-L452RE host:
 .. code-block:: console
 
    west build -b nucleo_l452re --shield x_nucleo_ese01a1 stsephyr/samples/basic
-   west flash -r openocd
+   west flash
 
 The expected console message is ``STSAFE-A120 echo successful``.
