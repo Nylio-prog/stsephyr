@@ -23,6 +23,7 @@ void stsephyr_sample_close(void);
 void stsephyr_sample_banner(const char *title, const char *description);
 void stsephyr_sample_section(const char *title);
 void stsephyr_sample_hex(const char *label, const uint8_t *data, size_t length);
+int stsephyr_sample_hex_decode(const char *hex, uint8_t *data, size_t length);
 void stsephyr_sample_partition_table(const stsafea_data_partition_record_t *partitions,
 				     uint8_t partition_count);
 void stsephyr_sample_random(uint8_t *data, size_t length);

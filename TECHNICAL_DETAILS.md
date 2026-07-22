@@ -230,12 +230,11 @@ transfer, polling timeout behavior, concurrent caller serialization, and
 repeated reset. The introductory test must not run irreversible commands even
 though the default evaluation profile allows them.
 
-## 11. STSAFE-A SDK-inspired category-01 samples
+## 11. STSAFE-A120 application samples
 
-The `samples/` tree mirrors the non-provisioning category-01 projects from the
-STSAFE-A SDK. Each sample is a normal Zephyr application and shares a small
-helper that acquires the STSAFE device, reports STSELib status, and prints a
-machine-readable `PASS:` line:
+Each sample is a normal Zephyr application and shares a small helper that
+acquires the STSAFE device, reports STSELib status, decodes locally supplied
+hexadecimal keys where needed, and prints a machine-readable `PASS:` line:
 
 | Sample | Demonstrates | Persistent side effects by default |
 | --- | --- | --- |
@@ -244,8 +243,15 @@ machine-readable `PASS:` line:
 | `01_echo_loop` | Full variable-length request and response buffers (bounded to 1--500 bytes) | None |
 | `01_hash` | Input buffer plus host PSA and STSAFE SHA-256 results | None |
 | `01_random_number` | 64 bytes from the STSAFE random service | None |
+| `01_key_pair_generation` | P-256, P-521, and Brainpool P-512 key-pair generation variants | Disabled; replaces persistent asymmetric-key slot state when opted in |
 | `01_secure_data_storage_zone_access` | Full partition table and 100-byte data-zone readback | Updates are disabled unless explicitly opted in |
 | `01_secure_data_storage_counter_access` | Full partition table, associated data, and counter-zone readback | Decrement is disabled unless explicitly opted in |
+| `02_command_access_conditions` | Command authorization and encryption-policy audit | None; read-only |
+| `02_host_key_provisioning` | Plaintext and wrapped host MAC/cipher-key provisioning variants | Disabled; replaces persistent host keys when opted in |
+| `03_ecdh` | Authenticated ephemeral ECDH with host/device secret comparison | None; requires previously provisioned matching host keys |
+| `03_key_wrapping` | Ephemeral key wrapping and unwrapping | Wrap-key generation is disabled unless explicitly opted in |
+| `04_symmetric_key_control_fields` | Symmetric-slot policy audit and guarded update | Audit is read-only; update changes persistent access policy |
+| `05_symmetric_key_operations` | Established/wrapped AES CMAC and CCM variants | Disabled; replaces persistent symmetric-key slot state when opted in |
 
 The applications select Zephyr's immediate logging mode. Certificate and
 variable-length buffer dumps can otherwise fill the deferred logging queue and
@@ -259,8 +265,8 @@ west build -b nucleo_l452re --shield x_nucleo_ese01a1 \
   stsephyr/samples/01_hash
 ```
 
-For destructive SDK-parity operations, opt in deliberately at build time and
-record the device state before/after the run:
+For persistent operations, opt in deliberately at build time and record the
+device state before and after the run:
 
 ```console
 west build -b nucleo_l452re --shield x_nucleo_ese01a1 \
@@ -270,6 +276,29 @@ west build -b nucleo_l452re --shield x_nucleo_ese01a1 \
   stsephyr/samples/01_secure_data_storage_counter_access -- \
   -DCONFIG_SAMPLE_STSAFE_ALLOW_COUNTER_DECREMENT=y
 ```
+
+Key generation/provisioning, host-key provisioning, wrap-key generation,
+symmetric-key control updates, and symmetric-key writes use equivalent
+operation-specific `CONFIG_SAMPLE_STSAFE_ALLOW_*` gates. Their Twister
+definitions set `build_only: true`: CI validates that the guarded branches
+compile, while device testing cannot select or flash them. The access-condition
+and symmetric-control audit scenarios remain hardware-enabled because they
+only query device state.
+
+Host-session samples require matching host MAC and cipher keys supplied as
+32-hex-character Kconfig strings in a local, untracked extra configuration.
+No working key material is checked in. Host-key provisioning intentionally
+does not modify the provisioning-control fields, because that lifecycle choice
+must remain separate and explicit. Permanent-lock flows are intentionally
+absent.
+
+The three prime-curve key-generation projects are represented as variants of
+one sample. Ed25519 key generation is omitted because the current Zephyr PSA
+platform adapter does not implement the EdDSA callbacks required to verify that
+sample. The raw command-access-condition provisioning flow is represented by a
+read-only audit instead of a fixed policy write. Before wrap-key generation or
+symmetric-key replacement, the samples authenticate a host session as a
+preflight so incorrect host keys fail before persistent state is changed.
 
 ### Flashing through Zephyr runners
 
@@ -294,8 +323,12 @@ arguments; OpenOCD, J-Link, and ST-LINK GDB server remain optional alternatives.
 - Runtime power removal is not supported; the PAL power hooks only control reset.
 - Hardware wake signaling and all-command behavior require on-target validation.
 - Global serialization limits concurrency across multiple STSAFE instances.
-- Provisioning and product-specific key storage are deliberately outside the
-  basic sample and driver policy.
+- Provisioning remains outside the basic sample and driver policy; guarded
+  provisioning examples require explicit user-supplied key material.
+
+The driver itself is MCU-independent within Zephyr. See
+[PORTING.md](PORTING.md) for the electrical, devicetree, entropy, flashing, and
+Twister process required to qualify another host board.
 
 An STSELib update is not just a tag change. Maintainers must review callback
 signatures, `stse_conf.h` symbols, the explicit source list, maximum frame sizes,

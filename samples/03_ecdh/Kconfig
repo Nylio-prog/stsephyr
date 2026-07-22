@@ -1,0 +1,18 @@
+mainmenu "STSAFE-A120 ECDHE example"
+
+config SAMPLE_STSAFE_ENABLE_ECDH
+	bool "Enable the host-authenticated ECDHE flow"
+	default n
+	help
+	  The ECDHE keys are ephemeral and do not alter persistent key slots, but
+	  the configured host keys must already match the target device.
+
+config SAMPLE_STSAFE_HOST_MAC_KEY_HEX
+	string "Provisioned AES-128 host MAC key as 32 hexadecimal characters"
+	default ""
+
+config SAMPLE_STSAFE_HOST_CIPHER_KEY_HEX
+	string "Provisioned AES-128 host cipher key as 32 hexadecimal characters"
+	default ""
+
+source "Kconfig.zephyr"

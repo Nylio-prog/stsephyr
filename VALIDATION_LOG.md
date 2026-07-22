@@ -1,4 +1,4 @@
-# STSEphyr category-01 validation
+# STSEphyr sample validation
 
 Environment: Zephyr v4.4.0, Zephyr SDK 1.0.1, west 1.5.0, STSELib v1.1.9,
 `nucleo_l452re` plus `x_nucleo_ese01a1`.
@@ -48,8 +48,8 @@ Zephyr logging mode was used by these applications so the large certificate
 and buffer dumps reached the UART without deferred-log message loss.
 
 The safe storage defaults were left enabled: no zone update or counter
-decrement was attempted. Key-pair-generation applications are deliberately not
-provided or tested because their operations alter persistent key-slot state.
+decrement was attempted. Persistent key and policy operations were not part of
+this hardware run.
 
 ## Twister hardware integration run
 
@@ -74,3 +74,35 @@ These are Twister scenario durations and include flashing/reset/console
 overhead; they are integration-test timing figures, not isolated firmware
 operation benchmarks. Full UART transcripts were captured in each scenario's
 `handler.log`.
+
+## Expanded sample matrix
+
+On 2026-07-22, Twister discovered and successfully built all 24 sample
+scenarios for `nucleo_l452re` plus `x_nucleo_ese01a1`: 24 built, zero failed,
+zero errored, and no warnings. This includes the enabled branches of every
+guarded key-generation, provisioning, wrapping, and symmetric-key scenario.
+Those persistent-operation scenarios are marked `build_only: true` and were
+not flashed.
+
+Only the two new read-only audit scenarios were then selected explicitly for a
+hardware run:
+
+| Twister scenario | Execution time |
+| --- | ---: |
+| `sample.stsephyr.command_access_conditions` | 5.26 s |
+| `sample.stsephyr.symmetric_key_control_fields.audit` | 2.58 s |
+
+Both passed on the connected Nucleo-L452RE and STSAFE-A120. The command audit
+printed all 45 access-condition records, and the symmetric-key audit printed
+slot 0's provisioning-control fields. Neither application issued a state-
+changing command. No key provisioning, key generation, counter decrement,
+policy update, or permanent/irreversible flow was executed on this board.
+
+## STM32G4 portability build
+
+On 2026-07-22, `samples/basic` was also clean-built for `nucleo_g474re` with
+the existing `x_nucleo_ese01a1` shield overlay. The image linked successfully
+with no board-specific STSEphyr changes and used 54,912 bytes of flash and
+15,616 bytes of RAM. This is compile validation only: no STM32G4 board was
+flashed, and physical support is not claimed until the safe qualification steps
+in `PORTING.md` have been completed.

@@ -1,0 +1,23 @@
+sample:
+  name: STSAFE-A120 asymmetric key-pair generation
+  description: Generate and exercise a persistent ECC private-key slot
+
+common:
+  tags: [security, i2c, stsafe, destructive]
+  platform_allow: [nucleo_l452re]
+  integration_platforms: [nucleo_l452re]
+  extra_args: [SHIELD=x_nucleo_ese01a1]
+  build_only: true
+  extra_configs:
+    - CONFIG_SAMPLE_STSAFE_ALLOW_KEY_PAIR_GENERATION=y
+
+tests:
+  sample.stsephyr.key_pair_generation.nist_p256:
+    extra_configs:
+      - CONFIG_SAMPLE_STSAFE_KEY_CURVE_NIST_P256=y
+  sample.stsephyr.key_pair_generation.nist_p521:
+    extra_configs:
+      - CONFIG_SAMPLE_STSAFE_KEY_CURVE_NIST_P521=y
+  sample.stsephyr.key_pair_generation.brainpool_p512:
+    extra_configs:
+      - CONFIG_SAMPLE_STSAFE_KEY_CURVE_BRAINPOOL_P512=y

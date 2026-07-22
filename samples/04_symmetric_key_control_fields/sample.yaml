@@ -1,0 +1,22 @@
+sample:
+  name: STSAFE-A120 symmetric-key provisioning controls
+  description: Audit or explicitly extend a symmetric-key slot provisioning policy
+
+common:
+  tags: [security, i2c, stsafe]
+  platform_allow: [nucleo_l452re]
+  integration_platforms: [nucleo_l452re]
+  extra_args: [SHIELD=x_nucleo_ese01a1]
+  harness: console
+  harness_config:
+    type: one_line
+    regex: ["PASS: 04_symmetric_key_control_fields"]
+    fixture: stsafe_a120
+
+tests:
+  sample.stsephyr.symmetric_key_control_fields.audit: {}
+  sample.stsephyr.symmetric_key_control_fields.update:
+    build_only: true
+    tags: [destructive]
+    extra_configs:
+      - CONFIG_SAMPLE_STSAFE_ALLOW_SYMMETRIC_CONTROL_UPDATE=y

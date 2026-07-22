@@ -1,0 +1,17 @@
+mainmenu "STSAFE-A120 symmetric-key provisioning-control example"
+
+config SAMPLE_STSAFE_SYMMETRIC_KEY_SLOT
+	int "Symmetric-key slot"
+	default 0
+	range 0 255
+
+config SAMPLE_STSAFE_ALLOW_SYMMETRIC_CONTROL_UPDATE
+	bool "Allow persistent symmetric-key control-field update"
+	default n
+	help
+	  DANGEROUS: changes which provisioning mechanisms are accepted by the
+	  selected symmetric-key slot. The example preserves all existing fields,
+	  enables anonymous wrapped and ECDHE provisioning, and refuses to write if
+	  the slot's change_right is already disabled.
+
+source "Kconfig.zephyr"

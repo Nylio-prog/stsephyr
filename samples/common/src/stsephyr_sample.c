@@ -5,6 +5,9 @@
 
 #include "stsephyr_sample.h"
 
+#include <errno.h>
+#include <string.h>
+
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/kernel.h>
@@ -80,6 +83,40 @@ void stsephyr_sample_hex(const char *label, const uint8_t *data, size_t length)
 		printk(" 0x%02X", data[i]);
 	}
 	printk("\n");
+}
+
+static int hex_nibble(char value)
+{
+	if ((value >= '0') && (value <= '9')) {
+		return value - '0';
+	}
+	if ((value >= 'a') && (value <= 'f')) {
+		return value - 'a' + 10;
+	}
+	if ((value >= 'A') && (value <= 'F')) {
+		return value - 'A' + 10;
+	}
+
+	return -EINVAL;
+}
+
+int stsephyr_sample_hex_decode(const char *hex, uint8_t *data, size_t length)
+{
+	if ((hex == NULL) || (data == NULL) || (strlen(hex) != (length * 2U))) {
+		return -EINVAL;
+	}
+
+	for (size_t i = 0U; i < length; ++i) {
+		int high = hex_nibble(hex[i * 2U]);
+		int low = hex_nibble(hex[(i * 2U) + 1U]);
+
+		if ((high < 0) || (low < 0)) {
+			return -EINVAL;
+		}
+		data[i] = (uint8_t)((high << 4) | low);
+	}
+
+	return 0;
 }
 
 void stsephyr_sample_partition_table(const stsafea_data_partition_record_t *partitions,
