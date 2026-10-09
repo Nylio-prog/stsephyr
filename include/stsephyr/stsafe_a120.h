@@ -18,8 +18,8 @@ extern "C" {
 /**
  * @brief Acquire serialized access to an STSAFE-A120 STSELib handle.
  *
- * The lock covers all STSELib instances because STSELib v1.1.9 contains PAL
- * state shared by CRC and streaming crypto callbacks.
+ * The lock covers all STSELib instances because the STSELib platform
+ * callbacks for CRC and streaming crypto share state.
  *
  * @param dev STSAFE-A120 Zephyr device.
  * @param timeout Maximum time to wait for access.

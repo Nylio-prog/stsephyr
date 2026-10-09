@@ -16,7 +16,7 @@ services.
 | | Version tested |
 | --- | --- |
 | Zephyr | v4.4.0 |
-| STSELib | v1.1.9 (used unmodified) |
+| STSELib | v1.1.11 (used unmodified) |
 | Monocypher (only for Ed25519, optional) | 4.0.3 |
 | Hardware | NUCLEO-L452RE + X-NUCLEO-ESE01A1 (STSAFE-A120, ST evaluation personalization) |
 

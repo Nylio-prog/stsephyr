@@ -24,7 +24,7 @@ manifest:
     - name: stselib
       remote: stmicroelectronics
       repo-path: STSELib
-      revision: v1.1.9
+      revision: v1.1.11
       path: modules/lib/stselib
       groups:
         - stse

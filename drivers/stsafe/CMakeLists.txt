@@ -7,7 +7,7 @@ if(NOT DEFINED STSELIB_ROOT)
   if(DEFINED WEST_TOPDIR)
     set(STSELIB_ROOT "${WEST_TOPDIR}/modules/lib/stselib")
   else()
-    message(FATAL_ERROR "Set STSELIB_ROOT to the STSELib v1.1.9 checkout")
+    message(FATAL_ERROR "Set STSELIB_ROOT to the STSELib v1.1.11 checkout")
   endif()
 endif()
 
