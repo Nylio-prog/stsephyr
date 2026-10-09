@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 2026 STMicroelectronics
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * CRC-16/X-25 platform callback, check value from the CRC catalogue.
  */
 
 #include <zephyr/ztest.h>

@@ -1,6 +1,6 @@
 sample:
   name: STSAFE-A120 echo loop
-  description: Exercise variable-length STSAFE-A120 echo commands
+  description: Send random-length messages to the echo command and check the responses
 
 common:
   tags: [security, i2c, stsafe]

@@ -28,15 +28,33 @@ jobs:
           toolchains: arm-zephyr-eabi
 
       - name: Run host-side unit tests
-        run: west twister -T stsephyr/tests --inline-logs -O twister-out-tests
+        run: west twister -T stsephyr/tests -p native_sim --inline-logs -O twister-out-tests
 
       - name: Build hardware samples
-        run: west twister -T stsephyr/samples --build-only --inline-logs -O twister-out-samples
+        run: west twister -T stsephyr/samples -p nucleo_l452re --build-only --inline-logs -O twister-out-samples
+
+      - name: Install source formatter
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format-19
 
       - name: Check source formatting and whitespace
         working-directory: stsephyr
         run: |
-          git ls-files -z '*.c' '*.h' | xargs -0 clang-format --dry-run --Werror
+          git ls-files -z '*.c' '*.h' | xargs -0 clang-format-19 --dry-run --Werror
           if git grep -nI -E '[[:blank:]]+$' -- ':(exclude)LICENSE'; then
             exit 1
           fi
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: twister-reports
+          path: |
+            twister-out-tests/twister.json
+            twister-out-tests/twister.xml
+            twister-out-tests/**/handler.log
+            twister-out-samples/twister.json
+            twister-out-samples/twister.xml
+          if-no-files-found: ignore

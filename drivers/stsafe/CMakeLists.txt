@@ -19,6 +19,32 @@ if(NOT EXISTS "${STSELIB_ROOT}/stselib.h" OR
     "STSELib was not found at ${STSELIB_ROOT}. Run west update or set STSELIB_ROOT.")
 endif()
 
+if(CONFIG_STSEPHYR_ECC_ED25519)
+  if(NOT DEFINED MONOCYPHER_ROOT)
+    if(DEFINED WEST_TOPDIR)
+      set(MONOCYPHER_ROOT "${WEST_TOPDIR}/modules/crypto/monocypher")
+    else()
+      message(FATAL_ERROR "Set MONOCYPHER_ROOT to the Monocypher 4.0.3 checkout")
+    endif()
+  endif()
+
+  get_filename_component(MONOCYPHER_ROOT "${MONOCYPHER_ROOT}" ABSOLUTE)
+  if(NOT EXISTS "${MONOCYPHER_ROOT}/src/monocypher.c" OR
+     NOT EXISTS "${MONOCYPHER_ROOT}/src/optional/monocypher-ed25519.c")
+    message(FATAL_ERROR
+      "Monocypher was not found at ${MONOCYPHER_ROOT}. Run west update or set MONOCYPHER_ROOT.")
+  endif()
+
+  zephyr_include_directories(
+    ${MONOCYPHER_ROOT}/src
+    ${MONOCYPHER_ROOT}/src/optional
+  )
+  zephyr_library_sources(
+    ${MONOCYPHER_ROOT}/src/monocypher.c
+    ${MONOCYPHER_ROOT}/src/optional/monocypher-ed25519.c
+  )
+endif()
+
 zephyr_include_directories(
   ${ZEPHYR_CURRENT_MODULE_DIR}/include
   ${ZEPHYR_CURRENT_MODULE_DIR}/platform

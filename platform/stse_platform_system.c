@@ -97,6 +97,8 @@ PLAT_UI32 stse_platform_generate_random(void)
 
 	if (sys_csrand_get(&value, sizeof(value)) != 0) {
 		LOG_ERR("CSPRNG request failed");
+		/* STSELib's random-word callback has no error return. Fail closed. */
+		k_panic();
 	}
 
 	return value;

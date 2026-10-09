@@ -1,39 +1,30 @@
 /*
  * Copyright (c) 2026 STMicroelectronics
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Reads random bytes from the STSAFE-A120 random number generator.
  */
 
-#include "stsephyr_sample.h"
+#include "sample_common.h"
 
 #include <zephyr/sys/printk.h>
 
-#define RANDOM_SIZE 64U
-
 int main(void)
 {
-	uint8_t random[RANDOM_SIZE];
+	uint8_t random[64];
 	stse_Handler_t *handler;
-	stse_ReturnCode_t status;
 
-	stsephyr_sample_banner(
-		"STSAFE-A120 Random number generation example",
-		"Generates 64 random bytes using the STSAFE-A120 random-number command.");
-	if (stsephyr_sample_open(&handler) != 0) {
+	printk("STSAFE-A120 random number generation\n");
+	if (sample_open(&handler) != 0) {
 		return 0;
 	}
 
-	status = stse_generate_random(handler, random, sizeof(random));
-	if (stsephyr_sample_status("stse_generate_random (64 bytes)", status) != 0) {
-		goto out;
+	if (sample_check("Generate 64 random bytes",
+			 stse_generate_random(handler, random, sizeof(random))) == 0) {
+		sample_print_hex("Random data", random, sizeof(random));
+		printk("PASS: 01_random_number\n");
 	}
-	stsephyr_sample_section("STSAFE-A120 random output");
-	stsephyr_sample_hex("Random data", random, sizeof(random));
-	stsephyr_sample_footer();
-	stsephyr_sample_close();
-	stsephyr_sample_pass("01_random_number");
-	return 0;
 
-out:
-	stsephyr_sample_close();
+	sample_close();
 	return 0;
 }

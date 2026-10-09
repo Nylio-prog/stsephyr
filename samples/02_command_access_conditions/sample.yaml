@@ -1,6 +1,6 @@
 sample:
-  name: STSAFE-A120 command access-condition audit
-  description: Read and print command authorization and encryption requirements
+  name: STSAFE-A120 command access conditions
+  description: List the access condition and encryption flags of every command
 
 common:
   tags: [security, i2c, stsafe]

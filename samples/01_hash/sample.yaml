@@ -1,6 +1,6 @@
 sample:
   name: STSAFE-A120 hash
-  description: Compare host PSA SHA-256 with STSAFE-A120 SHA-256
+  description: Compare STSAFE-A120 and MCU digests (SHA-256 and SHA3 variants)
 
 common:
   tags: [security, i2c, stsafe]
@@ -15,3 +15,12 @@ common:
 
 tests:
   sample.stsephyr.hash: {}
+  sample.stsephyr.hash.sha3_256:
+    extra_configs:
+      - CONFIG_SAMPLE_HASH_SHA3_256=y
+  sample.stsephyr.hash.sha3_384:
+    extra_configs:
+      - CONFIG_SAMPLE_HASH_SHA3_384=y
+  sample.stsephyr.hash.sha3_512:
+    extra_configs:
+      - CONFIG_SAMPLE_HASH_SHA3_512=y

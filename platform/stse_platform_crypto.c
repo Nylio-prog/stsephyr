@@ -12,6 +12,10 @@
 
 #include <stselib.h>
 
+#ifdef CONFIG_STSEPHYR_ECC_ED25519
+#include <monocypher-ed25519.h>
+#endif
+
 LOG_MODULE_DECLARE(stsephyr, CONFIG_STSEPHYR_LOG_LEVEL);
 
 struct ecc_parameters {
@@ -26,6 +30,15 @@ struct ecc_parameters {
 static psa_mac_operation_t cmac_operation = PSA_MAC_OPERATION_INIT;
 static psa_key_id_t cmac_key;
 static size_t cmac_expected_tag_size;
+
+static void secure_zero(void *buffer, size_t length)
+{
+	volatile uint8_t *p = buffer;
+
+	while (length-- != 0U) {
+		*p++ = 0U;
+	}
+}
 
 static stse_ReturnCode_t crypto_error(psa_status_t status, stse_ReturnCode_t error)
 {
@@ -105,6 +118,18 @@ static psa_algorithm_t hash_algorithm_get(stse_hash_algorithm_t algorithm)
 #ifdef CONFIG_STSEPHYR_HASH_SHA512
 	case STSE_SHA_512:
 		return PSA_ALG_SHA_512;
+#endif
+#ifdef CONFIG_STSEPHYR_HASH_SHA3_256
+	case STSE_SHA3_256:
+		return PSA_ALG_SHA3_256;
+#endif
+#ifdef CONFIG_STSEPHYR_HASH_SHA3_384
+	case STSE_SHA3_384:
+		return PSA_ALG_SHA3_384;
+#endif
+#ifdef CONFIG_STSEPHYR_HASH_SHA3_512
+	case STSE_SHA3_512:
+		return PSA_ALG_SHA3_512;
 #endif
 	default:
 		return PSA_ALG_NONE;
@@ -201,6 +226,18 @@ stse_ReturnCode_t stse_platform_ecc_verify(stse_ecc_key_type_t key_type, const P
 	psa_key_id_t key_id = PSA_KEY_ID_NULL;
 	psa_status_t status;
 
+#ifdef CONFIG_STSEPHYR_ECC_ED25519
+	if (key_type == STSE_ECC_KT_ED25519) {
+		if (pPubKey == NULL || pDigest == NULL || pSignature == NULL) {
+			return STSE_PLATFORM_INVALID_PARAMETER;
+		}
+
+		return crypto_ed25519_check(pSignature, pPubKey, pDigest, digestLen) == 0
+			       ? STSE_OK
+			       : STSE_PLATFORM_ECC_VERIFY_ERROR;
+	}
+#endif
+
 	if (!ecc_parameters_get(key_type, &parameters) || !parameters.prefix_public_key ||
 	    hash_algorithm == PSA_ALG_NONE || pPubKey == NULL || pDigest == NULL ||
 	    pSignature == NULL) {
@@ -246,6 +283,11 @@ stse_ReturnCode_t stse_platform_ecc_generate_key_pair(stse_ecc_key_type_t key_ty
 	if (status == PSA_SUCCESS) {
 		status = psa_export_public_key(key_id, public_key, sizeof(public_key),
 					       &public_length);
+	}
+	if (status == PSA_SUCCESS &&
+	    (private_length != parameters.private_size ||
+	     public_length != parameters.public_size + (parameters.prefix_public_key ? 1U : 0U))) {
+		status = PSA_ERROR_DATA_INVALID;
 	}
 	if (status == PSA_SUCCESS) {
 		if (parameters.prefix_public_key) {
@@ -339,7 +381,15 @@ stse_ReturnCode_t stse_platform_ecc_ecdh(stse_ecc_key_type_t key_type, const PLA
 stse_ReturnCode_t stse_platform_aes_cmac_init(const PLAT_UI8 *pKey, PLAT_UI16 key_length,
 					      PLAT_UI16 exp_tag_size)
 {
+	psa_algorithm_t algorithm;
 	psa_status_t status;
+
+	if (pKey == NULL || (key_length != 16U && key_length != 24U && key_length != 32U) ||
+	    (exp_tag_size == 0U) ||
+	    (exp_tag_size > PSA_MAC_LENGTH(PSA_KEY_TYPE_AES, key_length * 8U, PSA_ALG_CMAC))) {
+		return STSE_PLATFORM_INVALID_PARAMETER;
+	}
+	algorithm = PSA_ALG_TRUNCATED_MAC(PSA_ALG_CMAC, exp_tag_size);
 
 	(void)psa_mac_abort(&cmac_operation);
 	if (cmac_key != PSA_KEY_ID_NULL) {
@@ -349,9 +399,9 @@ stse_ReturnCode_t stse_platform_aes_cmac_init(const PLAT_UI8 *pKey, PLAT_UI16 ke
 
 	status = import_aes_key(pKey, key_length,
 				PSA_KEY_USAGE_SIGN_MESSAGE | PSA_KEY_USAGE_VERIFY_MESSAGE,
-				PSA_ALG_CMAC, &cmac_key);
+				algorithm, &cmac_key);
 	if (status == PSA_SUCCESS) {
-		status = psa_mac_sign_setup(&cmac_operation, cmac_key, PSA_ALG_CMAC);
+		status = psa_mac_sign_setup(&cmac_operation, cmac_key, algorithm);
 	}
 	cmac_expected_tag_size = exp_tag_size;
 	return crypto_error(status, STSE_PLATFORM_AES_CMAC_COMPUTE_ERROR);
@@ -388,12 +438,28 @@ stse_ReturnCode_t stse_platform_aes_cmac_compute_finish(PLAT_UI8 *pTag, PLAT_UI8
 
 stse_ReturnCode_t stse_platform_aes_cmac_verify_finish(PLAT_UI8 *pTag)
 {
+	uint8_t computed_tag[PSA_MAC_MAX_SIZE];
+	uint8_t difference = 0U;
+	size_t tag_length = 0U;
 	psa_status_t status;
 
 	if (pTag == NULL) {
 		return STSE_PLATFORM_INVALID_PARAMETER;
 	}
-	status = psa_mac_verify_finish(&cmac_operation, pTag, cmac_expected_tag_size);
+	status = psa_mac_sign_finish(&cmac_operation, computed_tag, cmac_expected_tag_size,
+				     &tag_length);
+	if (status == PSA_SUCCESS && tag_length != cmac_expected_tag_size) {
+		status = PSA_ERROR_INVALID_SIGNATURE;
+	}
+	if (status == PSA_SUCCESS) {
+		for (size_t i = 0U; i < tag_length; ++i) {
+			difference |= computed_tag[i] ^ pTag[i];
+		}
+		if (difference != 0U) {
+			status = PSA_ERROR_INVALID_SIGNATURE;
+		}
+	}
+	secure_zero(computed_tag, sizeof(computed_tag));
 	cmac_cleanup();
 	return crypto_error(status, STSE_PLATFORM_AES_CMAC_VERIFY_ERROR);
 }
@@ -403,14 +469,20 @@ stse_ReturnCode_t stse_platform_aes_cmac_compute(const PLAT_UI8 *pPayload, PLAT_
 						 PLAT_UI16 exp_tag_size, PLAT_UI8 *pTag,
 						 PLAT_UI16 *pTag_length)
 {
+	psa_algorithm_t algorithm;
 	psa_key_id_t key_id = PSA_KEY_ID_NULL;
 	size_t output_length = 0U;
 	psa_status_t status;
 
-	status =
-		import_aes_key(pKey, key_length, PSA_KEY_USAGE_SIGN_MESSAGE, PSA_ALG_CMAC, &key_id);
+	if (pKey == NULL || (key_length != 16U && key_length != 24U && key_length != 32U) ||
+	    (exp_tag_size == 0U) ||
+	    (exp_tag_size > PSA_MAC_LENGTH(PSA_KEY_TYPE_AES, key_length * 8U, PSA_ALG_CMAC))) {
+		return STSE_PLATFORM_INVALID_PARAMETER;
+	}
+	algorithm = PSA_ALG_TRUNCATED_MAC(PSA_ALG_CMAC, exp_tag_size);
+	status = import_aes_key(pKey, key_length, PSA_KEY_USAGE_SIGN_MESSAGE, algorithm, &key_id);
 	if (status == PSA_SUCCESS) {
-		status = psa_mac_compute(key_id, PSA_ALG_CMAC, pPayload, payload_length, pTag,
+		status = psa_mac_compute(key_id, algorithm, pPayload, payload_length, pTag,
 					 exp_tag_size, &output_length);
 	}
 	if (key_id != PSA_KEY_ID_NULL) {
@@ -426,13 +498,19 @@ stse_ReturnCode_t stse_platform_aes_cmac_verify(const PLAT_UI8 *pPayload, PLAT_U
 						const PLAT_UI8 *pKey, PLAT_UI16 key_length,
 						const PLAT_UI8 *pTag, PLAT_UI16 tag_length)
 {
+	psa_algorithm_t algorithm;
 	psa_key_id_t key_id = PSA_KEY_ID_NULL;
 	psa_status_t status;
 
-	status = import_aes_key(pKey, key_length, PSA_KEY_USAGE_VERIFY_MESSAGE, PSA_ALG_CMAC,
-				&key_id);
+	if (pKey == NULL || pTag == NULL || (pPayload == NULL && payload_length != 0U) ||
+	    (key_length != 16U && key_length != 24U && key_length != 32U) || (tag_length == 0U) ||
+	    (tag_length > PSA_MAC_LENGTH(PSA_KEY_TYPE_AES, key_length * 8U, PSA_ALG_CMAC))) {
+		return STSE_PLATFORM_INVALID_PARAMETER;
+	}
+	algorithm = PSA_ALG_TRUNCATED_MAC(PSA_ALG_CMAC, tag_length);
+	status = import_aes_key(pKey, key_length, PSA_KEY_USAGE_VERIFY_MESSAGE, algorithm, &key_id);
 	if (status == PSA_SUCCESS) {
-		status = psa_mac_verify(key_id, PSA_ALG_CMAC, pPayload, payload_length, pTag,
+		status = psa_mac_verify(key_id, algorithm, pPayload, payload_length, pTag,
 					tag_length);
 	}
 	if (key_id != PSA_KEY_ID_NULL) {
@@ -452,6 +530,12 @@ static stse_ReturnCode_t aes_cipher(const uint8_t *input, size_t input_length, c
 	size_t finish_length = 0U;
 	psa_status_t status;
 
+	if (key == NULL || output == NULL || (input == NULL && input_length != 0U) ||
+	    (input_length % 16U) != 0U ||
+	    (key_length != 16U && key_length != 24U && key_length != 32U) ||
+	    (algorithm == PSA_ALG_CBC_NO_PADDING && iv == NULL)) {
+		return STSE_PLATFORM_INVALID_PARAMETER;
+	}
 	status = import_aes_key(key, key_length,
 				encrypt ? PSA_KEY_USAGE_ENCRYPT : PSA_KEY_USAGE_DECRYPT, algorithm,
 				&key_id);
@@ -571,7 +655,8 @@ stse_ReturnCode_t stse_platform_hmac_sha256_expand(PLAT_UI8 *pPseudorandom_key,
 	size_t produced = 0U;
 	uint8_t counter = 1U;
 
-	if (pPseudorandom_key == NULL || pOutput_keying_material == NULL || info_length > 255U ||
+	if (pPseudorandom_key == NULL || pOutput_keying_material == NULL ||
+	    (pInfo == NULL && info_length != 0U) || info_length > 255U ||
 	    output_keying_material_length > 255U * 32U) {
 		return STSE_PLATFORM_INVALID_PARAMETER;
 	}
@@ -592,6 +677,9 @@ stse_ReturnCode_t stse_platform_hmac_sha256_expand(PLAT_UI8 *pPseudorandom_key,
 		status = hmac_sha256(pPseudorandom_key, pseudorandom_key_length, input,
 				     input_length, previous, sizeof(previous), &block_length);
 		if (status != STSE_OK || block_length != sizeof(previous)) {
+			secure_zero(previous, sizeof(previous));
+			secure_zero(input, sizeof(input));
+			secure_zero(pOutput_keying_material, produced);
 			return STSE_PLATFORM_HKDF_ERROR;
 		}
 		previous_length = block_length;
@@ -600,6 +688,8 @@ stse_ReturnCode_t stse_platform_hmac_sha256_expand(PLAT_UI8 *pPseudorandom_key,
 		produced += copy_length;
 	}
 
+	secure_zero(previous, sizeof(previous));
+	secure_zero(input, sizeof(input));
 	return STSE_OK;
 }
 
@@ -616,13 +706,13 @@ stse_ReturnCode_t stse_platform_hmac_sha256_compute(PLAT_UI8 *pSalt, PLAT_UI16 s
 	status = stse_platform_hmac_sha256_extract(pSalt, salt_length, pInput_keying_material,
 						   input_keying_material_length, pseudorandom_key,
 						   sizeof(pseudorandom_key));
-	if (status != STSE_OK) {
-		return status;
+	if (status == STSE_OK) {
+		status = stse_platform_hmac_sha256_expand(
+			pseudorandom_key, sizeof(pseudorandom_key), pInfo, info_length,
+			pOutput_keying_material, output_keying_material_length);
 	}
-
-	return stse_platform_hmac_sha256_expand(pseudorandom_key, sizeof(pseudorandom_key), pInfo,
-						info_length, pOutput_keying_material,
-						output_keying_material_length);
+	secure_zero(pseudorandom_key, sizeof(pseudorandom_key));
+	return status;
 }
 
 stse_ReturnCode_t stse_platform_nist_kw_encrypt(PLAT_UI8 *pPayload, PLAT_UI32 payload_length,
@@ -639,7 +729,7 @@ stse_ReturnCode_t stse_platform_nist_kw_encrypt(PLAT_UI8 *pPayload, PLAT_UI32 pa
 		return STSE_PLATFORM_INVALID_PARAMETER;
 	}
 	n = payload_length / 8U;
-	memcpy(pOutput + 8U, pPayload, payload_length);
+	memmove(pOutput + 8U, pPayload, payload_length);
 
 	for (uint64_t j = 0U; j < 6U; ++j) {
 		for (uint64_t i = 1U; i <= n; ++i) {
@@ -652,6 +742,8 @@ stse_ReturnCode_t stse_platform_nist_kw_encrypt(PLAT_UI8 *pPayload, PLAT_UI32 pa
 				       PSA_ALG_ECB_NO_PADDING, true, encrypted,
 				       &encrypted_length) != STSE_OK ||
 			    encrypted_length != sizeof(encrypted)) {
+				secure_zero(block, sizeof(block));
+				secure_zero(encrypted, sizeof(encrypted));
 				return STSE_PLATFORM_KEYWRAP_ERROR;
 			}
 			memcpy(a, encrypted, 8U);
@@ -664,5 +756,7 @@ stse_ReturnCode_t stse_platform_nist_kw_encrypt(PLAT_UI8 *pPayload, PLAT_UI32 pa
 
 	memcpy(pOutput, a, sizeof(a));
 	*pOutput_length = payload_length + sizeof(a);
+	secure_zero(block, sizeof(block));
+	secure_zero(encrypted, sizeof(encrypted));
 	return STSE_OK;
 }

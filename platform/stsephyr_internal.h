@@ -24,8 +24,6 @@ struct stsephyr_config {
 
 struct stsephyr_data {
 	stse_Handler_t handler;
-	struct k_mutex lock;
-	const struct device *dev;
 	uint8_t io_buffer[STSEPHYR_IO_BUFFER_SIZE];
 	size_t frame_length;
 	size_t frame_offset;

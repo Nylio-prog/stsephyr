@@ -1,77 +1,54 @@
-# Porting X-NUCLEO-ESE01A1 to another Zephyr MCU
+# Using another board
 
-STSEphyr is not tied to the STM32L452. The driver needs only:
+STSEphyr is not tied to the STM32L452. The driver needs:
 
-- an I2C controller connected to the STSAFE-A120;
-- one GPIO for reset management;
-- a Zephyr console for the examples; and
-- PSA Crypto with a production-quality entropy source.
+- an I2C controller connected to the STSAFE-A120,
+- one GPIO for the reset line,
+- a real entropy source for Zephyr's CSPRNG (`sys_csrand_get()`),
+- and, for the samples, a console UART.
 
-Board-specific details belong in devicetree. The driver and example source
-normally do not need to change.
+Everything board specific is in devicetree; the C code normally does not change.
 
-## Hardware connections
+## X-NUCLEO-ESE01A1 on another Arduino-compatible board
 
-| Function | X-NUCLEO-ESE01A1 connection |
+The shield overlay uses Zephyr's standard `arduino_i2c` bus and
+`arduino_header` connector, so on most boards with an Arduino UNO R3 header it
+works as is:
+
+```sh
+west build -p always -b <board> --shield x_nucleo_ese01a1 stsephyr/samples/basic
+```
+
+| Signal | Arduino pin |
 | --- | --- |
-| SDA | Arduino D14/SDA |
-| SCL | Arduino D15/SCL |
-| Reset management | Arduino A5 through the shield's inverting PMOS |
-| Power | Compatible board supply and common ground |
-| Serial log | Target board's Zephyr console, usually the debugger virtual COM port |
+| SDA / SCL | D14 / D15 |
+| STSAFE-A120 reset (through an inverting PMOS on the shield) | A5 |
 
-The standard evaluation profile uses the 7-bit I2C address `0x20`. Confirm the
-address if the device has been personalized. Before powering the boards, also
-check voltage compatibility, I2C pull-ups, solder bridges, connector
-orientation, and pin conflicts.
+The STSAFE-A120 answers at 7-bit I2C address `0x20` in the ST evaluation
+personalization.
 
-Start at 100 kHz for bring-up. Change to 400 kHz only after the basic example
-is reliable and the pull-ups and bus capacitance are suitable.
+After the build, open `build/zephyr/zephyr.dts` and check that:
 
-## Arduino-compatible boards
+- `stsafe-a120@20` sits under the I2C controller wired to D14/D15,
+- the I2C pins, the reset GPIO and the I2C clock frequency match the board
+  schematic,
+- an entropy source (`rng` or similar) is enabled.
 
-The existing shield overlay uses Zephyr's standard `arduino_i2c` and
-`arduino_header` definitions. On an Arduino UNO R3-compatible Zephyr board,
-first try it directly:
-
-```console
-west build -p always -d build/<board>-basic \
-  -b <zephyr-board-name> --shield x_nucleo_ese01a1 \
-  stsephyr/samples/basic
-```
-
-For example, Nucleo-G474RE compiles without any additional overlay:
-
-```console
-west build -p always -d build/g474-basic \
-  -b nucleo_g474re --shield x_nucleo_ese01a1 \
-  stsephyr/samples/basic
-```
-
-Zephyr already configures its Arduino I2C bus on PB8/PB9, console, HSI48, and
-hardware RNG. This configuration has been compile-tested, but not yet run on a
-physical G474 board.
-
-After building, inspect `build/<board>-basic/zephyr/zephyr.dts`. Verify that:
-
-- `stsafe-a120@20` is enabled below the expected I2C controller;
-- SDA, SCL, clock frequency, and reset GPIO match the board schematic; and
-- the I2C, GPIO, console, RNG, and their required clocks are enabled.
-
-If only pin routing or an RNG clock differs, add a small board-specific shield
-overlay at:
+If a pin mapping or a clock differs, add a board overlay to the shield, as
+done for the L452RE in
+[`boards/shields/x_nucleo_ese01a1/boards/nucleo_l452re.overlay`](boards/shields/x_nucleo_ese01a1/boards/nucleo_l452re.overlay):
 
 ```text
-boards/shields/x_nucleo_ese01a1/boards/<zephyr-board-name>.overlay
+boards/shields/x_nucleo_ese01a1/boards/<board>.overlay
 ```
 
-The existing `nucleo_l452re.overlay` is an example of this approach.
+For example, `nucleo_g474re` builds without any extra overlay (compile tested
+only).
 
-## Custom board or direct wiring
+## Custom wiring
 
-For a board without Zephyr Arduino connector definitions, describe the
-STSAFE-A120 below the actual I2C controller. Replace the pins in this example
-with the target's real wiring:
+Describe the device under the I2C controller it is connected to, in a board
+file or an application overlay:
 
 ```dts
 #include <zephyr/dt-bindings/gpio/gpio.h>
@@ -83,105 +60,59 @@ with the target's real wiring:
 	clock-frequency = <I2C_BITRATE_STANDARD>;
 	status = "okay";
 
-	stsafe_a120: stsafe-a120@20 {
+	stsafe-a120@20 {
 		compatible = "st,stsafe-a120";
 		reg = <0x20>;
-		reset-gpios = <&gpioa 5 GPIO_ACTIVE_HIGH>;
-		status = "okay";
+		reset-gpios = <&gpioa 5 GPIO_ACTIVE_LOW>;
 	};
 };
 ```
 
-Use `GPIO_ACTIVE_HIGH` when driving the X-NUCLEO-ESE01A1 A5 input because its
-PMOS inverts the signal. For a direct connection to the STSAFE-A120 reset pin,
-use the polarity of the actual circuit, normally `GPIO_ACTIVE_LOW`.
+- **Reset polarity:** with a direct connection to the STSAFE-A120 reset pin
+  the line is normally `GPIO_ACTIVE_LOW`. Through the X-NUCLEO-ESE01A1 PMOS it
+  is `GPIO_ACTIVE_HIGH`. Follow your schematic.
+- **I2C speed:** start at 100 kHz (`I2C_BITRATE_STANDARD`); move to 400 kHz
+  once the basic sample is reliable and the pull-ups allow it.
 
-Build with the new overlay while developing it:
+Build with the overlay:
 
-```console
-west build -p always -d build/custom-basic \
-  -b <zephyr-board-name> stsephyr/samples/basic -- \
-  -DDTC_OVERLAY_FILE=C:/path/to/stsafe-a120.overlay
+```sh
+west build -p always -b <board> stsephyr/samples/basic -- -DEXTRA_DTC_OVERLAY_FILE=/path/to/stsafe.overlay
 ```
 
-The binding is documented in `dts/bindings/crypto/st,stsafe-a120.yaml`.
+## First run
 
-## Entropy and host cryptography
-
-STSELib uses host cryptography for certificate verification, ECDH, and other
-operations. `CONFIG_STSEPHYR` enables PSA Crypto and requests a CSPRNG, but the
-board must provide real entropy.
-
-Enable the MCU hardware RNG and its source clock when supported. Otherwise use
-a production-grade Zephyr entropy driver for that platform. Do not qualify
-authentication or key-management examples with a predictable test RNG.
-
-## Safe first run
-
-Flash only the non-destructive basic example initially:
-
-```console
-west flash -d build/<board>-basic --context
-west flash -d build/<board>-basic
-```
-
-Open the console at 115200 8N1. A successful first boot ends with:
+Flash `basic` first. It only sends an echo command:
 
 ```text
-<inf> stsephyr: stsafe-a120@20 ready at 0x20 on <i2c-controller>
-<inf> stsephyr_sample: STSAFE-A120 echo successful
+<inf> stsephyr: stsafe-a120@20 ready at 0x20 on <i2c controller>
 PASS: basic
 ```
 
-Then qualify the board in this order:
+If initialization fails, the usual causes are the reset polarity, the I2C
+address, missing pull-ups, an I2C controller or pinctrl not enabled, or the
+console on another UART.
 
-1. Repeat `basic` after reset and cold boot.
-2. Run random, hash, command-access audit, and storage-read examples.
-3. Run device authentication and record its log and duration.
-4. Run the safe Twister hardware scenarios.
+Then run the other samples that do not change the device (`01_echo_loop`,
+`01_random_number`, `01_hash`, `01_secure_data_storage`,
+`02_command_access_conditions`, `01_device_authentication` without the opt-in).
 
-Do not enable any `CONFIG_SAMPLE_STSAFE_ALLOW_*` option during board bring-up.
-Persistent scenarios are connectivity tests only at compile time and remain
-`build_only: true` in Twister.
+## Adding the board to the tests
 
-Common initialization failures are usually caused by the wrong reset polarity,
-an incorrect I2C address, missing pull-ups, disabled pinctrl/clocks, or a console
-configured on another UART.
+Once the samples pass on the new board, add it to `platform_allow` and
+`integration_platforms` in the `sample.yaml` files you validated, and add an
+entry to your hardware map:
 
-## Add the board to Twister
+```yaml
+- connected: true
+  fixtures: [stsafe_a120]
+  id: <debug probe serial number>
+  platform: <board>
+  product: <probe product name, e.g. STM32 STLink>
+  runner: <flash runner>
+  serial: <serial port>
+  baud: 115200
+```
 
-After the physical board passes the safe tests:
-
-1. Add its Zephyr name to `platform_allow` and `integration_platforms` in only
-   the sample `sample.yaml` files that were qualified.
-2. Generate a hardware map:
-
-   ```console
-   west twister --generate-hardware-map hardware-map-<board>.yml
-   ```
-
-3. Review its board, probe ID, serial port, baud rate, and runner. Add the
-   `stsafe_a120` fixture:
-
-   ```yaml
-   - connected: true
-     fixtures:
-       - stsafe_a120
-     id: <debug-probe-id>
-     platform: <zephyr-board-name>
-     runner: <working-runner>
-     serial: <serial-port>
-     baud: 115200
-   ```
-
-4. Start with the basic scenario:
-
-   ```console
-   west twister -T stsephyr/samples --device-testing \
-     --hardware-map hardware-map-<board>.yml \
-     -s sample.stsephyr.basic --inline-logs --short-build-path -ll DEBUG
-   ```
-
-Twister automatically skips every scenario marked `build_only`. Once the safe
-suite passes, record the wiring, board revision, Zephyr version, flash runner,
-serial port, results, and timings in the support matrix and validation log.
+`west twister --generate-hardware-map <file>` can generate the probe and port
+fields.

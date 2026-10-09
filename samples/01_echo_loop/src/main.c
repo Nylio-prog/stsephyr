@@ -1,65 +1,60 @@
 /*
  * Copyright (c) 2026 STMicroelectronics
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Sends random messages of random length to the STSAFE-A120 echo command and
+ * checks the responses. Long messages exercise the I2C frame segmentation.
  */
 
-#include "stsephyr_sample.h"
+#include "sample_common.h"
 
 #include <string.h>
-#include <zephyr/kernel.h>
+
+#include <zephyr/random/random.h>
 #include <zephyr/sys/printk.h>
 
-#define ECHO_ITERATIONS 5U
-#define ECHO_MAX_LENGTH 500U
+#define ITERATIONS	 10U
+#define MAX_MESSAGE_SIZE 500U
 
 int main(void)
 {
-	uint8_t request[ECHO_MAX_LENGTH];
-	uint8_t response[ECHO_MAX_LENGTH];
+	static uint8_t request[MAX_MESSAGE_SIZE];
+	static uint8_t response[MAX_MESSAGE_SIZE];
 	stse_Handler_t *handler;
-	stse_ReturnCode_t status;
-	uint16_t random_length;
 
-	stsephyr_sample_banner(
-		"STSAFE-A Echo loop example",
-		"Sends random messages to STSAFE-A120 and verifies the echoed data.");
-	printk(" - Running %u bounded iterations\n", ECHO_ITERATIONS);
-	if (stsephyr_sample_open(&handler) != 0) {
+	printk("STSAFE-A120 echo loop\n");
+	if (sample_open(&handler) != 0) {
 		return 0;
 	}
 
-	for (unsigned int iteration = 0; iteration < ECHO_ITERATIONS; ++iteration) {
-		stsephyr_sample_random((uint8_t *)&random_length, sizeof(random_length));
-		random_length = (random_length % ECHO_MAX_LENGTH) + 1U;
-		stsephyr_sample_random(request, random_length);
-		memset(response, 0, random_length);
+	for (unsigned int i = 1U; i <= ITERATIONS; i++) {
+		uint16_t length;
 
-		printk("\n - Echo iteration %u/%u (%u bytes)\n", iteration + 1U, ECHO_ITERATIONS,
-		       random_length);
-		stsephyr_sample_section("Message");
-		stsephyr_sample_hex("Message", request, random_length);
-
-		status = stse_device_echo(handler, request, response, random_length);
-		if (stsephyr_sample_status("stse_device_echo", status) != 0) {
+		if (sys_csrand_get(&length, sizeof(length)) != 0 ||
+		    sys_csrand_get(request, sizeof(request)) != 0) {
+			printk("FAIL: host random generator\n");
 			goto out;
 		}
+		/* Always include the 1-byte and maximum-size edge cases. */
+		if (i == 1U) {
+			length = 1U;
+		} else if (i == ITERATIONS) {
+			length = MAX_MESSAGE_SIZE;
+		} else {
+			length = 1U + length % MAX_MESSAGE_SIZE;
+		}
+		memset(response, 0, length);
 
-		stsephyr_sample_section("Echoed Message");
-		stsephyr_sample_hex("Echoed Message", response, random_length);
-		if (memcmp(request, response, random_length) != 0) {
-			printk("FAIL: echo mismatch on iteration %u\n", iteration + 1U);
+		if (stse_device_echo(handler, request, response, length) != STSE_OK ||
+		    memcmp(request, response, length) != 0) {
+			printk("FAIL: echo of %u bytes\n", length);
 			goto out;
 		}
-		printk(" - Echo message comparison: SUCCESS\n");
-		stsephyr_sample_footer();
-		k_sleep(K_SECONDS(1));
+		printk("Echo %2u/%u: %3u bytes OK\n", i, ITERATIONS, length);
 	}
 
-	stsephyr_sample_close();
-	stsephyr_sample_pass("01_echo_loop");
-	return 0;
-
+	printk("PASS: 01_echo_loop\n");
 out:
-	stsephyr_sample_close();
+	sample_close();
 	return 0;
 }

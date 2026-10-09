@@ -1,6 +1,6 @@
 sample:
   name: STSAFE-A120 random number
-  description: Generate random bytes with the STSAFE-A120 TRNG
+  description: Read random bytes from the STSAFE-A120
 
 common:
   tags: [security, i2c, stsafe]

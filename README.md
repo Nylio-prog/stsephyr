@@ -1,204 +1,233 @@
 # STSEphyr
 
-STSEphyr is the STMicroelectronics Zephyr port for the STSAFE-A120 secure
-element. It integrates the upstream
-[STSELib](https://github.com/STMicroelectronics/STSELib) middleware without
-forking or copying it.
+Zephyr RTOS support for the **STSAFE-A120** secure element from
+STMicroelectronics.
 
-The initial supported hardware is:
+STSEphyr is a [Zephyr module](https://docs.zephyrproject.org/latest/develop/modules.html)
+that runs ST's [STSELib](https://github.com/STMicroelectronics/STSELib)
+middleware on Zephyr. It provides the Zephyr device driver, the devicetree
+binding, the I2C, reset and host-cryptography glue STSELib needs, a shield
+definition for the X-NUCLEO-ESE01A1 expansion board, and samples.
 
-- Zephyr 4.4.0;
-- STSELib 1.1.9;
-- STM32 Nucleo-L452RE host board;
-- X-NUCLEO-ESE01A1 expansion board with its default STSAFE-A120 evaluation
-  profile.
+Your application then uses the regular STSELib API for device authentication,
+secure storage, random numbers, hashing, signatures and the other STSAFE-A120
+services.
 
-## Workspace setup
+| | Version tested |
+| --- | --- |
+| Zephyr | v4.4.0 |
+| STSELib | v1.1.9 (used unmodified) |
+| Monocypher (only for Ed25519, optional) | 4.0.3 |
+| Hardware | NUCLEO-L452RE + X-NUCLEO-ESE01A1 (STSAFE-A120, ST evaluation personalization) |
 
-Install the Zephyr prerequisites, the Zephyr SDK, and west as described in the
-[Zephyr getting-started guide](https://docs.zephyrproject.org/4.4.0/develop/getting_started/index.html).
-Install STM32CubeProgrammer with its ST-LINK USB driver for flashing. Then
-create a workspace from this manifest repository:
+## How it fits together
 
-```shell
-mkdir stsephyr-workspace
+```text
+ Your application
+   │   stsephyr_acquire()  →  STSELib API calls  →  stsephyr_release()
+   ▼
+ STSELib (ST middleware, fetched by west, not modified)
+   │   platform callbacks
+   ▼
+ STSEphyr: I2C transport, reset GPIO, CRC, host crypto (PSA Crypto)
+   │
+   ▼
+ Zephyr I2C and GPIO drivers  ──I2C──►  STSAFE-A120
+```
+
+The driver initializes the secure element at boot. Applications borrow the
+STSELib handle with `stsephyr_acquire()` and give it back with
+`stsephyr_release()`.
+
+> **New to Zephyr?** `west` is Zephyr's command-line tool: it downloads the
+> sources listed in a manifest (`west.yml`), builds (`west build`) and flashes
+> (`west flash`). A *shield* is an add-on board; `--shield x_nucleo_ese01a1`
+> adds its wiring to the build. Hardware is described in *devicetree* files and
+> features are enabled with *Kconfig* options (`CONFIG_...`), usually in a
+> `prj.conf` file.
+
+## Getting started
+
+### 1. Install the tools
+
+Follow the Zephyr [Getting Started Guide](https://docs.zephyrproject.org/4.4.0/develop/getting_started/index.html)
+up to the Zephyr SDK installation; you do not need to fetch the Zephyr sources
+yourself. To flash the Nucleo board, also install
+[STM32CubeProgrammer](https://www.st.com/en/development-tools/stm32cubeprog.html).
+
+### 2. Create a workspace
+
+```sh
+west init -m https://github.com/STMicroelectronics/stsephyr stsephyr-workspace
 cd stsephyr-workspace
-git clone https://github.com/Nylio-prog/stsephyr.git stsephyr
-west init -l stsephyr
 west update
 west zephyr-export
 west packages pip --install
 ```
 
-STSELib is checked out by west at `modules/lib/stselib` and remains an external
-dependency at its own pinned revision.
+This fetches STSEphyr into `stsephyr/`, and Zephyr, STSELib, Monocypher and
+the few Zephyr modules needed for STM32 next to it.
 
-## Build the basic sample
+### 3. Build, flash and run the basic sample
 
-Stack X-NUCLEO-ESE01A1 on the Nucleo-L452RE and build:
+Plug the X-NUCLEO-ESE01A1 onto the NUCLEO-L452RE and connect the Nucleo's
+ST-LINK USB port. From the workspace directory:
 
-```shell
-west build -b nucleo_l452re --shield x_nucleo_ese01a1 \
-  stsephyr/samples/basic
+```sh
+west build -p always -b nucleo_l452re --shield x_nucleo_ese01a1 stsephyr/samples/basic
 west flash
 ```
 
-Open the ST-LINK virtual COM port at 115200 8N1. A successful run initializes
-STSELib and performs a non-destructive echo command.
+Open the ST-LINK virtual COM port with a serial terminal (Tera Term, PuTTY,
+`minicom`...) at **115200 baud, 8N1**, then press the board's reset button:
 
-## Examples
+```text
+[00:00:00.051,000] <inf> stsephyr: stsafe-a120@20 ready at 0x20 on i2c@40005400
+*** Booting Zephyr OS build v4.4.0 ***
+[00:00:00.062,000] <inf> basic: STSAFE-A120 echo successful
+PASS: basic
+```
 
-The `samples/` directory contains independent Zephyr applications that cover
-authentication, cryptography, storage, key management, and policy inspection.
+## Samples
 
-| Sample | What it demonstrates | Persistent STSAFE side effects by default |
+Build any sample by changing the path in the `west build` command. All of them
+target `nucleo_l452re` with `--shield x_nucleo_ese01a1`.
+
+| Sample | What it shows | Changes the device? |
 | --- | --- | --- |
-| `basic` | Initializes STSELib through Zephyr and performs one echo command | None |
-| `01_device_authentication` | Prints the raw and parsed device certificate, validates its chain, and proves possession of slot 0 | None |
-| `01_device_authentication_multi_steps` | Prints both parsed certificates, the host challenge, and the STSAFE signature while reporting every authentication step | None |
-| `01_echo_loop` | Prints and checks both sides of five variable-length echo transactions | None |
-| `01_hash` | Prints the input and compares the host-side PSA and STSAFE-A120 SHA-256 values | None |
-| `01_random_number` | Reads 64 random bytes from the STSAFE-A120 TRNG | None |
-| `01_key_pair_generation` | Generates P-256, P-521, or Brainpool P-512 key pairs | Disabled; replacing a persistent asymmetric-key slot requires explicit opt-in |
-| `01_secure_data_storage_counter_access` | Prints the partition table, configured counter-zone data, and current counter | Counter decrement is disabled |
-| `01_secure_data_storage_zone_access` | Prints the partition table and 100 bytes from the configured data zone | Zone update is disabled |
-| `02_command_access_conditions` | Audits command authorization and command-encryption settings | None; read-only |
-| `02_host_key_provisioning` | Provisions host MAC and cipher keys in plaintext or wrapped form | Disabled; replacing persistent host keys requires explicit opt-in |
-| `03_ecdh` | Performs authenticated ephemeral ECDH and compares the host/device shared secrets | None, but matching host session keys must already be provisioned |
-| `03_key_wrapping` | Wraps and unwraps an ephemeral key | Wrap-key generation is disabled because it replaces a persistent slot |
-| `04_symmetric_key_control_fields` | Audits or updates symmetric-key access controls | Audit is read-only; persistent policy update requires explicit opt-in |
-| `05_symmetric_key_operations` | Exercises CMAC and CCM with established or wrapped AES keys | Disabled; replacing a persistent symmetric-key slot requires explicit opt-in |
-| `project_template` | Minimal starting point for a customer application | None |
+| [`basic`](samples/basic) | Minimal application: initialize the device and send one echo command. Start here. | No |
+| [`01_echo_loop`](samples/01_echo_loop) | Echo of 1 to 500 byte messages (I2C framing) | No |
+| [`01_random_number`](samples/01_random_number) | Random bytes from the STSAFE-A120 | No |
+| [`01_hash`](samples/01_hash) | SHA-256 or SHA3 in the STSAFE-A120, compared with the MCU | No |
+| [`01_ed25519`](samples/01_ed25519) | Ed25519 signature verification in the STSAFE-A120 and on the MCU | No |
+| [`01_device_authentication`](samples/01_device_authentication) | Read the device certificate and verify it against the ST root CA; optionally prove possession of the private key | No by default; the opt-in signature can consume key usage counters |
+| [`01_secure_data_storage`](samples/01_secure_data_storage) | List data partitions, read a data zone and a counter zone | No |
+| [`02_command_access_conditions`](samples/02_command_access_conditions) | Which commands are free and which need host keys or encryption | No |
+| [`03_tls13_crypto`](samples/03_tls13_crypto) | **Experimental.** TLS 1.3 key schedule and records inside the STSAFE-A120, offline, against a mock server. Read its [limitations](samples/03_tls13_crypto/README.md#limitations). | Yes, opt-in only (key slots and host C-MAC counter) |
 
-Build any of them with the same board and shield arguments, for example:
+The numbers follow the example categories of ST's
+[STSAFE-A SDK](https://github.com/STMicroelectronics/stsafe-a-sdk): `01` basic
+services, `02` configuration, `03` key establishment with host keys.
 
-```shell
-west build -p always -d build/01_device_authentication \
-  -b nucleo_l452re --shield x_nucleo_ese01a1 \
-  stsephyr/samples/01_device_authentication
-west flash -d build/01_device_authentication
+Anything that changes the secure element is disabled unless you set the
+sample's `CONFIG_SAMPLE_STSAFE_ALLOW_*` option yourself. STSAFE-A120 state
+changes are permanent: writes, counter decrements and key usage limits cannot
+be undone by reflashing the MCU.
+
+## Using STSEphyr in your application
+
+**1. Add the module** to your application's `west.yml`, then run `west update`:
+
+```yaml
+  projects:
+    - name: stsephyr
+      url: https://github.com/STMicroelectronics/stsephyr
+      revision: main
+      import:
+        name-allowlist: [stselib, monocypher]
 ```
 
-### Persistent-operation safeguards
+The import pulls the STSELib and Monocypher revisions STSEphyr was tested
+with; your manifest keeps control of the Zephyr version.
 
-Every operation that changes persistent STSAFE-A120 state is disabled by
-default and requires a specific Kconfig opt-in:
+**2. Describe the hardware.** With an X-NUCLEO-ESE01A1 on an Arduino-compatible
+board, `--shield x_nucleo_ese01a1` is enough. For your own board, add an
+`st,stsafe-a120` node to its devicetree; see [PORTING.md](PORTING.md).
 
-| Kconfig option | Persistent change |
-| --- | --- |
-| `CONFIG_SAMPLE_STSAFE_ALLOW_ZONE_UPDATE` | Overwrites bytes in the selected data zone |
-| `CONFIG_SAMPLE_STSAFE_ALLOW_COUNTER_DECREMENT` | Consumes counter value; the decrement cannot be undone |
-| `CONFIG_SAMPLE_STSAFE_ALLOW_KEY_PAIR_GENERATION` | Replaces the selected asymmetric private key and configures its usage limit |
-| `CONFIG_SAMPLE_STSAFE_ALLOW_HOST_KEY_PROVISIONING` | Replaces the host MAC and cipher keys used for authenticated/encrypted sessions |
-| `CONFIG_SAMPLE_STSAFE_ALLOW_WRAP_KEY_GENERATION` | Replaces the selected key-wrapping key |
-| `CONFIG_SAMPLE_STSAFE_ALLOW_SYMMETRIC_CONTROL_UPDATE` | Changes persistent access controls for the selected symmetric-key slot |
-| `CONFIG_SAMPLE_STSAFE_ALLOW_SYMMETRIC_KEY_WRITE` | Replaces the selected symmetric key and its metadata |
+**3. Enable it.** `CONFIG_STSEPHYR` turns on automatically when the devicetree
+has an enabled `st,stsafe-a120` node. It also enables I2C, GPIO and PSA Crypto.
 
-The corresponding Twister scenarios are marked `build_only: true`. CI compiles
-the enabled code paths, but a normal hardware run cannot flash them. Review the
-sample's Kconfig help and source, confirm the target slot and current lifecycle
-state, and use only a device whose contents may be replaced before manually
-building and flashing one of these applications.
+**4. Call STSELib** while holding the device:
 
-The wrapping and symmetric-key samples authenticate a host session before
-issuing their persistent write, so invalid host keys fail before the selected
-slot is touched. This preflight cannot apply to host-key provisioning itself,
-because that operation intentionally installs new host keys.
+```c
+#include <stsephyr/stsafe_a120.h>
 
-Host keys are deliberately not stored in this repository. Put them in a local,
-untracked configuration file when compiling a sample that needs them, for
-example:
+static const struct device *const stsafe = DEVICE_DT_GET_ONE(st_stsafe_a120);
 
-```ini
-CONFIG_SAMPLE_STSAFE_HOST_MAC_KEY_HEX="00112233445566778899aabbccddeeff"
-CONFIG_SAMPLE_STSAFE_HOST_CIPHER_KEY_HEX="00112233445566778899aabbccddeeff"
+int read_random(uint8_t *buf, uint16_t len)
+{
+	stse_Handler_t *handler;
+	stse_ReturnCode_t status;
+	int ret = stsephyr_acquire(stsafe, K_SECONDS(5), &handler);
+
+	if (ret != 0) {
+		return ret;
+	}
+	status = stse_generate_random(handler, buf, len);
+	stsephyr_release(stsafe);
+
+	return stsephyr_stse_to_errno(status);
+}
 ```
 
-Pass that file with `-DEXTRA_CONF_FILE=C:/path/to/private.conf` and never commit
-production key material. Host-key provisioning also requires
-`CONFIG_SAMPLE_STSAFE_ALLOW_HOST_KEY_PROVISIONING=y` and a plaintext or wrapped
-provisioning mode. It does not change the provisioning-control fields for you.
+Keep the device acquired for a whole sequence of related commands, for example
+an entire host session, and release it from the same thread. The public API is
+in [`include/stsephyr/stsafe_a120.h`](include/stsephyr/stsafe_a120.h).
 
-## Validation
+### Main configuration options
 
-Build the configuration that enables every supported optional STSEphyr feature:
+| Option | Default | Purpose |
+| --- | --- | --- |
+| `CONFIG_STSEPHYR_ECC_NIST_P256`, `_P384` | `y` | NIST curves |
+| `CONFIG_STSEPHYR_ECC_NIST_P521`, `_BRAINPOOL_P256/P384/P512`, `_CURVE25519` | `n` | Other curves |
+| `CONFIG_STSEPHYR_ECC_ED25519` | `n` | Ed25519; adds Monocypher for MCU-side verification |
+| `CONFIG_STSEPHYR_HASH_SHA256`, `_SHA384`, `_SHA512` | `y` | SHA-2 |
+| `CONFIG_STSEPHYR_HASH_SHA3_256`, `_SHA3_384`, `_SHA3_512` | `n` | SHA-3 |
+| `CONFIG_STSEPHYR_HOST_SESSION` | `n` | Authenticated and encrypted host sessions (needs provisioned host keys) |
+| `CONFIG_STSEPHYR_LOCK_TIMEOUT_MS` | `5000` | Default timeout used by the samples to acquire the device |
+| `CONFIG_STSEPHYR_LOG_LEVEL` | log default | Driver log level |
 
-```shell
-west build -p always -b nucleo_l452re --shield x_nucleo_ese01a1 \
-  stsephyr/samples/basic -- \
-  -DEXTRA_CONF_FILE=stsephyr/samples/basic/full.conf
+Disabled algorithms are compiled out of STSELib. All options are in
+[`drivers/stsafe/Kconfig`](drivers/stsafe/Kconfig).
+
+## Testing
+
+Build every sample configuration, including the opt-in ones that are never
+flashed by the test runner:
+
+```sh
+west twister -T stsephyr/samples -p nucleo_l452re --build-only
 ```
 
-Run the host-side unit tests and compile the hardware sample matrix:
+Run the unit tests of the CRC and host-crypto glue (Linux or WSL):
 
-```shell
-west twister -T stsephyr/tests --inline-logs -O twister-out-tests
-west twister -T stsephyr/samples --build-only --inline-logs \
-  --short-build-path -O twister-out-samples
+```sh
+west twister -T stsephyr/tests -p native_sim
 ```
 
-GitHub Actions uses the same split: host-side tests execute normally, while the
-samples are compilation-only because its runners do not have an STSAFE-A120
-attached.
+Run the samples on the board with Twister: copy `stsephyr/hardware-map.yml` to
+`stsephyr/hardware-map.local.yml`, fill in the ST-LINK serial number and COM
+port, close any serial terminal, then:
 
-Run every sample as a hardware integration test with the Nucleo-L452RE and
-X-NUCLEO-ESE01A1 connected:
-
-```shell
-west twister -T stsephyr/samples --device-testing \
-  --hardware-map stsephyr/hardware-map.yml --inline-logs \
-  --short-build-path -ll DEBUG
+```sh
+west twister -T stsephyr/samples -p nucleo_l452re --device-testing --hardware-map stsephyr/hardware-map.local.yml
 ```
 
-Twister builds and flashes each hardware-enabled application, skips scenarios
-marked `build_only`, streams its 115200-baud serial
-output as `DEVICE:` debug messages, and passes the test when the expected
-`PASS: <sample>` marker appears. It reports pass/fail status and execution
-duration for every scenario, with each complete serial transcript in the
-scenario's `handler.log` and machine-readable results in `twister-out`. Omit
-`-ll DEBUG` when only the concise progress and result summary is needed.
+Twister flashes only the scenarios that leave the device unchanged; the others
+are marked `build_only`. On Windows, add `--short-build-path` if paths get too
+long. Results of the last validation are in [VALIDATION.md](VALIDATION.md).
 
-The checked-in `hardware-map.yml` identifies the current Nucleo by its ST-LINK
-probe ID, uses the OpenOCD flash runner, maps its virtual serial port to `COM3`,
-and advertises the required `stsafe_a120` fixture. If Windows assigns another
-port, update the `serial` field before running the tests. To regenerate a map
-for another probe, run:
+## Limitations
 
-```shell
-west twister --generate-hardware-map stsephyr/hardware-map.yml
-```
+- **STSAFE-A120 over I2C only.** STSAFE-A110 and STSAFE-L are not supported.
+- **One validated board.** Only NUCLEO-L452RE + X-NUCLEO-ESE01A1 has been run.
+  Other boards should work through devicetree ([PORTING.md](PORTING.md)) but
+  are untested.
+- **Read-only validation.** Operations that permanently change the secure
+  element (key generation, provisioning, storage writes, counters, host
+  sessions) are available through STSELib but were not exercised.
+- **STSELib API, not a Zephyr crypto API.** There is no Zephyr `crypto` driver
+  and no PSA Crypto secure-element driver, so Mbed TLS and Zephyr TLS sockets do
+  not use the STSAFE-A120 automatically.
+- **One device at a time.** Several STSAFE-A120 nodes can be declared, but all
+  calls are serialized by one lock and multi-device setups are untested.
+- **TLS is an experiment**, not a feature; see its
+  [limitations](samples/03_tls13_crypto/README.md#limitations).
 
-Then restore the generated entry's `platform`, `runner`, and `fixtures` fields
-as shown in the checked-in map. To run only one example, select its Twister
-scenario, for example:
-
-```shell
-west twister -T stsephyr/samples --device-testing \
-  --hardware-map stsephyr/hardware-map.yml \
-  -s sample.stsephyr.hash --inline-logs --short-build-path -ll DEBUG
-```
-
-On Windows, add `--short-build-path` to Twister commands that build the samples.
-Some of the generated Mbed TLS object paths can exceed the Windows path limit
-even when a short output directory is used.
-
-See [TECHNICAL_DETAILS.md](TECHNICAL_DETAILS.md) for architecture, limitations,
-the validation strategy, and hardware notes.
-
-To move X-NUCLEO-ESE01A1 to another Zephyr MCU—including the compile-validated
-Nucleo-G474RE configuration—follow [PORTING.md](PORTING.md). It covers both
-Arduino-compatible boards and custom wiring, devicetree overlays, entropy,
-safe bring-up, and Twister hardware-map qualification.
-
-## Safety
-
-Safe sample variants do not provision keys, change the I2C address, alter
-access conditions, decrement counters, or permanently lock the secure element.
-State-changing variants require an explicit Kconfig gate and are compile-only
-in Twister. They must be reviewed and flashed manually on a suitably
-provisioned or disposable device; permanent-lock scenarios are not provided.
+[TECHNICAL_DETAILS.md](TECHNICAL_DETAILS.md) explains the design choices and
+the integration limits in more detail.
 
 ## License
 
-STSEphyr is licensed under Apache-2.0. STSELib remains under its upstream
-BSD-3-Clause license.
+STSEphyr is licensed under Apache-2.0. STSELib (BSD-3-Clause) and Monocypher
+(BSD-2-Clause or CC0-1.0) keep their own licenses in their own repositories.

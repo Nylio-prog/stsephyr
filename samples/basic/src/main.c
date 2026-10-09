@@ -13,7 +13,7 @@
 
 #include <stsephyr/stsafe_a120.h>
 
-LOG_MODULE_REGISTER(stsephyr_sample, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(basic, LOG_LEVEL_INF);
 
 static const struct device *const stsafe = DEVICE_DT_GET_ONE(st_stsafe_a120);
 

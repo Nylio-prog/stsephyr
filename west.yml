@@ -6,6 +6,8 @@ manifest:
       url-base: https://github.com/zephyrproject-rtos
     - name: stmicroelectronics
       url-base: https://github.com/STMicroelectronics
+    - name: monocypher
+      url-base: https://github.com/LoupVaillant
 
   projects:
     - name: zephyr
@@ -26,6 +28,14 @@ manifest:
       path: modules/lib/stselib
       groups:
         - stse
+
+    - name: monocypher
+      remote: monocypher
+      repo-path: Monocypher
+      revision: 4.0.3
+      path: modules/crypto/monocypher
+      groups:
+        - crypto
 
   self:
     path: stsephyr

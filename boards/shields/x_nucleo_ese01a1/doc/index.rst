@@ -1,29 +1,33 @@
+.. _x_nucleo_ese01a1:
+
 X-NUCLEO-ESE01A1
-================
+################
 
 Overview
 ********
 
-The X-NUCLEO-ESE01A1 is an Arduino UNO R3 expansion board containing an
-STSAFE-A120 with the standard evaluation profile. STSEphyr uses the Arduino I2C
-bus and the reset-management input connected to Arduino A5. The standard profile
-uses the 7-bit I2C address 0x20.
+The X-NUCLEO-ESE01A1 is an Arduino UNO R3 expansion board with an STSAFE-A120
+secure element. The STSAFE-A120 is connected to the Arduino I2C bus (D14/D15)
+at 7-bit address ``0x20``, and its reset is controlled from Arduino pin A5
+through an inverting PMOS, so the reset GPIO is active high on the MCU side.
 
-On Nucleo-L452RE the board-specific shield overlay routes Arduino I2C to
-PB8/PB9, enables the HSI48 clock required by the hardware RNG, and accounts for
-the shield's inverted A5 reset-management circuit.
+The shield requires the STSEphyr module, which provides the ``st,stsafe-a120``
+driver.
 
 Requirements
 ************
 
-For the initial supported configuration, stack the shield directly on a
-Nucleo-L452RE. Keep the board's default power-selection links installed. The
-shield includes configurable I2C pull-ups; verify the solder bridges against the
-X-NUCLEO-ESE01A1 UM3531 user manual before changing them.
+A board with an Arduino UNO R3 header, Zephyr ``arduino_i2c`` and
+``arduino_header`` definitions, and an entropy source. Check the I2C pull-up
+solder bridges against the X-NUCLEO-ESE01A1 user manual (UM3531).
 
-Build
-*****
+On NUCLEO-L452RE, ``boards/nucleo_l452re.overlay`` routes Arduino I2C to
+PB8/PB9 and enables the RNG with its HSI48 clock.
+
+Programming
+***********
 
 .. code-block:: console
 
    west build -b nucleo_l452re --shield x_nucleo_ese01a1 stsephyr/samples/basic
+   west flash

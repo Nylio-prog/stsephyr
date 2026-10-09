@@ -68,7 +68,6 @@ static int initialize_handler(const struct device *dev, bool reset_hardware)
 static int stsephyr_init(const struct device *dev)
 {
 	const struct stsephyr_config *config = dev->config;
-	struct stsephyr_data *data = dev->data;
 	int ret;
 
 	if (!i2c_is_ready_dt(&config->i2c)) {
@@ -86,8 +85,6 @@ static int stsephyr_init(const struct device *dev)
 		return ret;
 	}
 
-	k_mutex_init(&data->lock);
-	data->dev = dev;
 	ret = stsephyr_platform_register(dev, config->bus_id);
 	if (ret != 0) {
 		LOG_ERR("%s: platform context registration failed (%d)", dev->name, ret);
@@ -107,19 +104,14 @@ int stsephyr_acquire(const struct device *dev, k_timeout_t timeout, stse_Handler
 	}
 
 	data = dev->data;
-	if (!data->ready) {
-		return -EIO;
-	}
-
 	ret = stsephyr_global_lock(timeout);
 	if (ret != 0) {
 		return ret;
 	}
 
-	ret = k_mutex_lock(&data->lock, timeout);
-	if (ret != 0) {
+	if (!data->ready) {
 		stsephyr_global_unlock();
-		return ret;
+		return -EIO;
 	}
 
 	*handler = &data->handler;
@@ -128,28 +120,25 @@ int stsephyr_acquire(const struct device *dev, k_timeout_t timeout, stse_Handler
 
 void stsephyr_release(const struct device *dev)
 {
-	struct stsephyr_data *data;
-
 	if (dev == NULL) {
 		return;
 	}
 
-	data = dev->data;
-	(void)k_mutex_unlock(&data->lock);
 	stsephyr_global_unlock();
 }
 
 int stsephyr_reset(const struct device *dev, k_timeout_t timeout)
 {
-	stse_Handler_t *handler;
 	int ret;
 
-	ret = stsephyr_acquire(dev, timeout, &handler);
+	if (dev == NULL || !device_is_ready(dev)) {
+		return -ENODEV;
+	}
+	/* A failed runtime reset must be recoverable even when data->ready is false. */
+	ret = stsephyr_global_lock(timeout);
 	if (ret != 0) {
 		return ret;
 	}
-	ARG_UNUSED(handler);
-
 	ret = initialize_handler(dev, true);
 	stsephyr_release(dev);
 	return ret;
